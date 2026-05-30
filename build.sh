@@ -36,7 +36,7 @@ node_modules/.bin/esbuild src/main.tsx \
   --loader:.tsx=tsx \
   --loader:.ts=ts \
   --loader:.css=empty \
-  --minify=false \
+  --minify \
   --define:process.env.NODE_ENV=\"production\" \
   --define:import.meta.env.VITE_SUPABASE_URL=\"${SUPABASE_URL}\" \
   --define:import.meta.env.VITE_SUPABASE_ANON_KEY=\"${SUPABASE_KEY}\" \

@@ -2,7 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'icc-qodesh',
-      script: '/home/user/webapp/start.sh',
+      script: 'node',
+      args: 'server.cjs',
       cwd: '/home/user/webapp',
       env: { NODE_ENV: 'production' },
       watch: false,
