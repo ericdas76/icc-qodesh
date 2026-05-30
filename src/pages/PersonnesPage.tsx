@@ -1,165 +1,329 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { supabase, Personne } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Search, Filter, Download, Eye, Edit, UserX } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, UserX, Download, FileText } from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
+import Modal from '../components/Modal'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { logEvent } from '../lib/journal'
-import * as XLSX from 'xlsx'
+import { exportExcel, exportPDF } from '../lib/export'
 
 const STATUTS = ['', 'nouveau', 'fi', 'formation', 'star', 'departement', 'libere', 'inactif']
+const SEXES = [{ v: '', l: 'Tous' }, { v: 'M', l: 'Homme' }, { v: 'F', l: 'Femme' }]
+const SOURCES = ['culte', 'ami', 'internet', 'autre']
+const SITUATIONS = ['celibataire', 'marie', 'divorce', 'veuf']
+
+const emptyForm = {
+  nom: '', prenom: '', sexe: '', date_naissance: '', lieu_naissance: '',
+  telephone: '', email: '', profession: '', situation_familiale: '',
+  nombre_enfants: 0, nationalite: 'Malagasy', adresse: '', quartier: '',
+  statut: 'nouveau', date_premier_contact: format(new Date(), 'yyyy-MM-dd'),
+  source_contact: '', notes: ''
+}
+
+const COLS_EXPORT = [
+  { header: 'Nom', key: 'nom' },
+  { header: 'Prénom', key: 'prenom' },
+  { header: 'Sexe', key: 'sexe' },
+  { header: 'Téléphone', key: 'telephone' },
+  { header: 'Email', key: 'email' },
+  { header: 'Statut', key: 'statut' },
+  { header: 'Quartier', key: 'quartier' },
+  { header: 'Nationalité', key: 'nationalite' },
+  { header: 'Date contact', key: 'date_premier_contact' },
+  { header: 'Source', key: 'source_contact' },
+]
 
 export default function PersonnesPage() {
-  const { hasPermission } = useAuth()
-  const navigate = useNavigate()
+  const { hasPermission, user } = useAuth()
   const [personnes, setPersonnes] = useState<Personne[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('')
+  const [filterSexe, setFilterSexe] = useState('')
+
+  // Modals
+  const [addModal, setAddModal] = useState(false)
+  const [editModal, setEditModal] = useState(false)
+  const [viewModal, setViewModal] = useState(false)
+  const [viewItem, setViewItem] = useState<Personne | null>(null)
+  const [editItem, setEditItem] = useState<Personne | null>(null)
   const [desactiverDialog, setDesactiverDialog] = useState<Personne | null>(null)
+
+  // Formulaire
+  const [form, setForm] = useState({ ...emptyForm })
+  const [saving, setSaving] = useState(false)
 
   const canCreate = hasPermission('membres', 'creer')
   const canEdit = hasPermission('membres', 'modifier')
   const canDelete = hasPermission('membres', 'supprimer')
   const canExport = hasPermission('membres', 'exporter')
 
-  useEffect(() => { fetchPersonnes() }, [search, filterStatut])
+  useEffect(() => { fetchPersonnes() }, [])
 
   const fetchPersonnes = async () => {
     setLoading(true)
-    let query = supabase.from('personnes').select('*').eq('actif', true).order('created_at', { ascending: false })
-    if (filterStatut) query = query.eq('statut', filterStatut)
-    if (search) query = query.or(`nom.ilike.%${search}%,prenom.ilike.%${search}%,telephone.ilike.%${search}%`)
-    const { data } = await query
+    const { data } = await supabase.from('personnes').select('*').eq('actif', true).order('nom')
     setPersonnes(data || [])
     setLoading(false)
   }
 
-  const desactiver = async (personne: Personne) => {
-    const { error } = await supabase.from('personnes').update({ actif: false }).eq('id', personne.id)
-    if (error) return toast.error('Erreur lors de la désactivation')
-    await logEvent('integration', 'desactivation', `Désactivation : ${personne.prenom} ${personne.nom}`, personne.id)
-    toast.success('Personne désactivée')
+  const filtered = personnes.filter(p => {
+    const s = search.toLowerCase()
+    const matchSearch = !search || p.nom.toLowerCase().includes(s) || p.prenom.toLowerCase().includes(s) || (p.telephone || '').includes(s)
+    const matchStatut = !filterStatut || p.statut === filterStatut
+    const matchSexe = !filterSexe || p.sexe === filterSexe
+    return matchSearch && matchStatut && matchSexe
+  })
+
+  // --- Ajouter ---
+  const openAdd = () => {
+    setForm({ ...emptyForm })
+    setAddModal(true)
+  }
+
+  const doAdd = async () => {
+    if (!form.nom.trim() || !form.prenom.trim()) { toast.error('Nom et prénom requis'); return }
+    setSaving(true)
+    const { data, error } = await supabase.from('personnes').insert({
+      ...form,
+      nombre_enfants: Number(form.nombre_enfants),
+      auteur_creation: user?.id,
+    }).select().single()
+    setSaving(false)
+    if (error) { toast.error('Erreur : ' + error.message); return }
+    await logEvent('personnes', 'creer', data.id, `Création de ${data.prenom} ${data.nom}`)
+    toast.success('Personne créée')
+    setAddModal(false)
     fetchPersonnes()
   }
 
-  const exportXLSX = () => {
-    if (!canExport) return toast.error('Permission refusée')
-    const data = personnes.map(p => ({
-      'Nom': p.nom, 'Prénom': p.prenom, 'Téléphone': p.telephone || '',
-      'Email': p.email || '', 'Statut': p.statut, 'Sexe': p.sexe || '',
-      'Nationalité': p.nationalite, 'Date arrivée': p.date_premier_contact || ''
-    }))
-    const ws = XLSX.utils.json_to_sheet(data)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Intégration')
-    XLSX.writeFile(wb, `icc-integration-${format(new Date(), 'yyyy-MM-dd')}.xlsx`)
+  // --- Modifier ---
+  const openEdit = (p: Personne) => {
+    setEditItem(p)
+    setForm({
+      nom: p.nom, prenom: p.prenom, sexe: p.sexe || '',
+      date_naissance: p.date_naissance || '', lieu_naissance: p.lieu_naissance || '',
+      telephone: p.telephone || '', email: p.email || '', profession: p.profession || '',
+      situation_familiale: p.situation_familiale || '',
+      nombre_enfants: p.nombre_enfants, nationalite: p.nationalite,
+      adresse: p.adresse || '', quartier: p.quartier || '',
+      statut: p.statut, date_premier_contact: p.date_premier_contact || '',
+      source_contact: p.source_contact || '', notes: p.notes || ''
+    })
+    setEditModal(true)
   }
 
-  const STATUT_LABELS: Record<string, string> = {
-    '': 'Tous les statuts', nouveau: 'Nouveau', fi: 'FI', formation: 'Formation',
-    star: 'STAR', departement: 'Département', libere: 'Libéré', inactif: 'Inactif'
+  const doEdit = async () => {
+    if (!editItem) return
+    if (!form.nom.trim() || !form.prenom.trim()) { toast.error('Nom et prénom requis'); return }
+    setSaving(true)
+    const { error } = await supabase.from('personnes').update({
+      ...form, nombre_enfants: Number(form.nombre_enfants),
+    }).eq('id', editItem.id)
+    setSaving(false)
+    if (error) { toast.error('Erreur : ' + error.message); return }
+    await logEvent('personnes', 'modifier', editItem.id, `Modification de ${form.prenom} ${form.nom}`)
+    toast.success('Personne mise à jour')
+    setEditModal(false)
+    fetchPersonnes()
   }
+
+  // --- Visualiser ---
+  const openView = (p: Personne) => { setViewItem(p); setViewModal(true) }
+
+  // --- Désactiver ---
+  const doDesactiver = async () => {
+    if (!desactiverDialog) return
+    const { error } = await supabase.from('personnes').update({ actif: false }).eq('id', desactiverDialog.id)
+    if (error) { toast.error('Erreur : ' + error.message); return }
+    await logEvent('personnes', 'supprimer', desactiverDialog.id, `Désactivation de ${desactiverDialog.prenom} ${desactiverDialog.nom}`)
+    toast.success('Personne désactivée')
+    setDesactiverDialog(null)
+    fetchPersonnes()
+  }
+
+  // --- Export ---
+  const doExportExcel = () => exportExcel('Personnes', COLS_EXPORT, filtered, 'Personnes')
+  const doExportPDF = () => exportPDF('Liste des Personnes', COLS_EXPORT, filtered, `${filtered.length} enregistrements`)
+
+  // --- Formulaire partagé ---
+  const PersonneForm = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="label">Nom *</label>
+        <input className="input" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} placeholder="Nom de famille" />
+      </div>
+      <div>
+        <label className="label">Prénom *</label>
+        <input className="input" value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))} placeholder="Prénom" />
+      </div>
+      <div>
+        <label className="label">Sexe</label>
+        <select className="input" value={form.sexe} onChange={e => setForm(f => ({ ...f, sexe: e.target.value }))}>
+          <option value="">-- Sélectionner --</option>
+          <option value="M">Homme</option>
+          <option value="F">Femme</option>
+        </select>
+      </div>
+      <div>
+        <label className="label">Date de naissance</label>
+        <input type="date" className="input" value={form.date_naissance} onChange={e => setForm(f => ({ ...f, date_naissance: e.target.value }))} />
+      </div>
+      <div>
+        <label className="label">Lieu de naissance</label>
+        <input className="input" value={form.lieu_naissance} onChange={e => setForm(f => ({ ...f, lieu_naissance: e.target.value }))} />
+      </div>
+      <div>
+        <label className="label">Téléphone</label>
+        <input className="input" value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} placeholder="+261 34 00 000 00" />
+      </div>
+      <div>
+        <label className="label">Email</label>
+        <input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+      </div>
+      <div>
+        <label className="label">Profession</label>
+        <input className="input" value={form.profession} onChange={e => setForm(f => ({ ...f, profession: e.target.value }))} />
+      </div>
+      <div>
+        <label className="label">Situation familiale</label>
+        <select className="input" value={form.situation_familiale} onChange={e => setForm(f => ({ ...f, situation_familiale: e.target.value }))}>
+          <option value="">-- Sélectionner --</option>
+          {SITUATIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="label">Nombre d'enfants</label>
+        <input type="number" min={0} className="input" value={form.nombre_enfants} onChange={e => setForm(f => ({ ...f, nombre_enfants: Number(e.target.value) }))} />
+      </div>
+      <div>
+        <label className="label">Nationalité</label>
+        <input className="input" value={form.nationalite} onChange={e => setForm(f => ({ ...f, nationalite: e.target.value }))} />
+      </div>
+      <div>
+        <label className="label">Statut</label>
+        <select className="input" value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}>
+          {STATUTS.filter(Boolean).map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="label">Adresse</label>
+        <input className="input" value={form.adresse} onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))} />
+      </div>
+      <div>
+        <label className="label">Quartier</label>
+        <input className="input" value={form.quartier} onChange={e => setForm(f => ({ ...f, quartier: e.target.value }))} />
+      </div>
+      <div>
+        <label className="label">Date premier contact</label>
+        <input type="date" className="input" value={form.date_premier_contact} onChange={e => setForm(f => ({ ...f, date_premier_contact: e.target.value }))} />
+      </div>
+      <div>
+        <label className="label">Source contact</label>
+        <select className="input" value={form.source_contact} onChange={e => setForm(f => ({ ...f, source_contact: e.target.value }))}>
+          <option value="">-- Sélectionner --</option>
+          {SOURCES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+        </select>
+      </div>
+      <div className="md:col-span-2">
+        <label className="label">Notes</label>
+        <textarea className="input" rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+      </div>
+    </div>
+  )
 
   return (
-    <div>
-      <div className="page-header">
+    <div className="space-y-6">
+      {/* En-tête */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="page-title">Intégration</h2>
-          <p className="text-sm text-slate-500 mt-0.5">{personnes.length} personne{personnes.length > 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold text-gray-900">Personnes</h1>
+          <p className="text-gray-500 text-sm">{filtered.length} personne{filtered.length > 1 ? 's' : ''}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex gap-2 flex-wrap">
           {canExport && (
-            <button onClick={exportXLSX} className="btn-secondary">
-              <Download size={16} /> Export
-            </button>
+            <>
+              <button onClick={doExportPDF} className="btn btn-secondary flex items-center gap-1">
+                <FileText size={16} /> PDF
+              </button>
+              <button onClick={doExportExcel} className="btn btn-secondary flex items-center gap-1">
+                <Download size={16} /> Excel
+              </button>
+            </>
           )}
           {canCreate && (
-            <Link to="/integration/nouveau" className="btn-primary">
-              <Plus size={16} /> Nouvelle fiche
-            </Link>
+            <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
+              <Plus size={18} /> Ajouter
+            </button>
           )}
         </div>
       </div>
 
       {/* Filtres */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <div className="relative flex-1 min-w-48">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Rechercher nom, prénom, téléphone…"
-            className="input pl-9"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+      <div className="card">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input className="input pl-9" placeholder="Nom, prénom, téléphone..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <select className="input" value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
+            <option value="">Tous les statuts</option>
+            {STATUTS.filter(Boolean).map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+          </select>
+          <select className="input" value={filterSexe} onChange={e => setFilterSexe(e.target.value)}>
+            {SEXES.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+          </select>
         </div>
-        <select className="input w-auto" value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
-          {STATUTS.map(s => <option key={s} value={s}>{STATUT_LABELS[s]}</option>)}
-        </select>
       </div>
 
       {/* Table */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden p-0">
         {loading ? (
-          <div className="flex items-center justify-center h-48"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700" /></div>
-        ) : personnes.length === 0 ? (
-          <EmptyState
-            icon={Search}
-            title="Aucune personne trouvée"
-            description={search || filterStatut ? "Modifiez vos critères de recherche." : "Commencez par créer une première fiche."}
-            action={canCreate ? <Link to="/integration/nouveau" className="btn-primary">Créer une fiche</Link> : undefined}
-          />
+          <div className="p-8 text-center text-gray-400">Chargement...</div>
+        ) : filtered.length === 0 ? (
+          <EmptyState message="Aucune personne trouvée" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-slate-50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Personne</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Téléphone</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Profession</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Statut</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Arrivée</th>
-                  <th className="px-4 py-3"></th>
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Nom complet</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Sexe</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Statut</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Quartier</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Contact</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {personnes.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 shrink-0 uppercase">
-                          {p.prenom?.[0]}{p.nom?.[0]}
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{p.prenom} {p.nom}</p>
-                          <p className="text-xs text-slate-400 md:hidden">{p.telephone || '—'}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 hidden md:table-cell">{p.telephone || '—'}</td>
-                    <td className="px-4 py-3 text-slate-600 hidden lg:table-cell">{p.profession || '—'}</td>
-                    <td className="px-4 py-3"><StatusBadge statut={p.statut} size="sm" /></td>
-                    <td className="px-4 py-3 text-slate-500 text-xs hidden md:table-cell">
-                      {p.date_premier_contact ? format(new Date(p.date_premier_contact), 'd MMM yyyy', { locale: fr }) : '—'}
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map(p => (
+                  <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-900">{p.prenom} {p.nom}</td>
+                    <td className="px-4 py-3 text-gray-600">{p.sexe === 'M' ? 'Homme' : p.sexe === 'F' ? 'Femme' : '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{p.telephone || '—'}</td>
+                    <td className="px-4 py-3"><StatusBadge statut={p.statut} /></td>
+                    <td className="px-4 py-3 text-gray-600">{p.quartier || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">
+                      {p.date_premier_contact ? format(new Date(p.date_premier_contact), 'dd MMM yyyy', { locale: fr }) : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Link to={`/integration/${p.id}`} className="p-1.5 rounded hover:bg-slate-100 text-slate-500 hover:text-blue-600">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openView(p)} className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="Visualiser">
                           <Eye size={15} />
-                        </Link>
+                        </button>
                         {canEdit && (
-                          <Link to={`/integration/${p.id}/modifier`} className="p-1.5 rounded hover:bg-slate-100 text-slate-500 hover:text-blue-600">
-                            <Edit size={15} />
-                          </Link>
+                          <button onClick={() => openEdit(p)} className="p-1.5 rounded hover:bg-amber-50 text-amber-600" title="Modifier">
+                            <Edit2 size={15} />
+                          </button>
                         )}
                         {canDelete && (
-                          <button onClick={() => setDesactiverDialog(p)} className="p-1.5 rounded hover:bg-slate-100 text-slate-500 hover:text-red-500">
+                          <button onClick={() => setDesactiverDialog(p)} className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Désactiver">
                             <UserX size={15} />
                           </button>
                         )}
@@ -173,14 +337,81 @@ export default function PersonnesPage() {
         )}
       </div>
 
+      {/* Modal Ajouter */}
+      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Nouvelle personne" size="xl">
+        <PersonneForm />
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+          <button onClick={() => setAddModal(false)} className="btn btn-secondary">Annuler</button>
+          <button onClick={doAdd} disabled={saving} className="btn btn-primary">
+            {saving ? 'Enregistrement...' : 'Enregistrer'}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal Modifier */}
+      <Modal isOpen={editModal} onClose={() => setEditModal(false)} title={`Modifier — ${editItem?.prenom} ${editItem?.nom}`} size="xl">
+        <PersonneForm />
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+          <button onClick={() => setEditModal(false)} className="btn btn-secondary">Annuler</button>
+          <button onClick={doEdit} disabled={saving} className="btn btn-primary">
+            {saving ? 'Enregistrement...' : 'Mettre à jour'}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal Visualiser */}
+      <Modal isOpen={viewModal} onClose={() => setViewModal(false)} title={`Fiche — ${viewItem?.prenom} ${viewItem?.nom}`} size="lg">
+        {viewItem && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {[
+                ['Nom complet', `${viewItem.prenom} ${viewItem.nom}`],
+                ['Sexe', viewItem.sexe === 'M' ? 'Homme' : viewItem.sexe === 'F' ? 'Femme' : '—'],
+                ['Date naissance', viewItem.date_naissance ? format(new Date(viewItem.date_naissance), 'dd MMMM yyyy', { locale: fr }) : '—'],
+                ['Lieu naissance', viewItem.lieu_naissance || '—'],
+                ['Téléphone', viewItem.telephone || '—'],
+                ['Email', viewItem.email || '—'],
+                ['Profession', viewItem.profession || '—'],
+                ['Situation familiale', viewItem.situation_familiale || '—'],
+                ['Nombre d\'enfants', String(viewItem.nombre_enfants)],
+                ['Nationalité', viewItem.nationalite],
+                ['Statut', viewItem.statut],
+                ['Adresse', viewItem.adresse || '—'],
+                ['Quartier', viewItem.quartier || '—'],
+                ['Source contact', viewItem.source_contact || '—'],
+                ['1er contact', viewItem.date_premier_contact ? format(new Date(viewItem.date_premier_contact), 'dd MMMM yyyy', { locale: fr }) : '—'],
+              ].map(([label, val]) => (
+                <div key={label}>
+                  <p className="text-xs text-gray-500 font-medium">{label}</p>
+                  <p className="text-gray-900">{val}</p>
+                </div>
+              ))}
+            </div>
+            {viewItem.notes && (
+              <div>
+                <p className="text-xs text-gray-500 font-medium">Notes</p>
+                <p className="text-gray-700 bg-gray-50 p-3 rounded text-sm">{viewItem.notes}</p>
+              </div>
+            )}
+            <div className="text-xs text-gray-400 border-t pt-3">
+              Créé le {format(new Date(viewItem.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
+            </div>
+          </div>
+        )}
+        <div className="flex justify-end mt-4">
+          <button onClick={() => setViewModal(false)} className="btn btn-secondary">Fermer</button>
+        </div>
+      </Modal>
+
+      {/* Dialog désactivation */}
       <ConfirmDialog
-        open={!!desactiverDialog}
+        isOpen={!!desactiverDialog}
         onClose={() => setDesactiverDialog(null)}
-        onConfirm={() => desactiverDialog && desactiver(desactiverDialog)}
-        title="Désactiver la fiche"
-        message={`Êtes-vous sûr de vouloir désactiver ${desactiverDialog?.prenom} ${desactiverDialog?.nom} ? La fiche sera masquée mais conservée.`}
+        onConfirm={doDesactiver}
+        title="Désactiver la personne"
+        message={`Désactiver ${desactiverDialog?.prenom} ${desactiverDialog?.nom} ? Cette action est réversible.`}
         confirmLabel="Désactiver"
-        danger
+        variant="danger"
       />
     </div>
   )
