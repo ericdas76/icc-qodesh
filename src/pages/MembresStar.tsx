@@ -113,16 +113,16 @@ export default function MembresStar() {
     if (editItem) {
       const { error } = await supabase.from('membres_star').update(payload).eq('id', editItem.id)
       if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
-      await logEvent('membres_star', 'modifier', editItem.id, 'STAR modifié')
+      await logEvent('membres_star', 'modification', 'STAR modifié', editItem.id)
       toast.success('STAR mis à jour')
     } else {
-      const { error } = await supabase.from('membres_star').insert(payload)
+      const { error } = await supabase.from('membres_star').insert({ ...payload, actif: true })
       if (error) {
         if (error.code === '23505') toast.error('Ce membre est déjà enregistré comme STAR')
         else toast.error('Erreur : ' + error.message)
         setSaving(false); return
       }
-      await logEvent('membres_star', 'creer', '', 'Nouveau STAR ajouté')
+      await logEvent('membres_star', 'creation', 'Nouveau STAR ajouté')
       toast.success('STAR ajouté')
     }
     setSaving(false)
@@ -303,13 +303,13 @@ export default function MembresStar() {
       </Modal>
 
       <ConfirmDialog
-        isOpen={!!desactiverDialog}
+        open={!!desactiverDialog}
         onClose={() => setDesactiverDialog(null)}
         onConfirm={doDesactiver}
         title="Retirer le membre STAR"
         message={`Retirer ${desactiverDialog?.membres?.personnes?.prenom} ${desactiverDialog?.membres?.personnes?.nom} des STAR ?`}
         confirmLabel="Retirer"
-        variant="danger"
+        danger
       />
     </div>
   )

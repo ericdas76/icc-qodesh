@@ -146,7 +146,7 @@ export default function ActivitesConges() {
     }
     const { error } = editItem
       ? await supabase.from('activites_conges').update(payload).eq('id', editItem.id)
-      : await supabase.from('activites_conges').insert(payload)
+      : await supabase.from('activites_conges').insert({ ...payload, actif: true })
     if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
     await logEvent('activites', editItem ? 'modification' : 'creation',
       `Congé ${editItem ? 'modifié' : 'créé'} : ${form.prenom_nom}`, editItem?.id)

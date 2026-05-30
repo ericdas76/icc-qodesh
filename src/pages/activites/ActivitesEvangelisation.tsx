@@ -116,12 +116,12 @@ export default function ActivitesEvangelisation() {
     if (editItem) {
       const { error } = await supabase.from('activites_evangelisation').update(payload).eq('id', editItem.id)
       if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
-      await logEvent('activites', 'modifier', editItem.id, `Évangélisation modifiée du ${form.date_sortie}`)
+      await logEvent('activites', 'modification', `Évangélisation modifiée du ${form.date_sortie}`, editItem.id)
       toast.success('Sortie mise à jour')
     } else {
-      const { error } = await supabase.from('activites_evangelisation').insert(payload)
+      const { error } = await supabase.from('activites_evangelisation').insert({ ...payload, actif: true })
       if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
-      await logEvent('activites', 'creer', '', `Nouvelle sortie évangélisation du ${form.date_sortie}`)
+      await logEvent('activites', 'creation', `Nouvelle sortie évangélisation du ${form.date_sortie}`)
       toast.success('Sortie créée')
     }
     setSaving(false)

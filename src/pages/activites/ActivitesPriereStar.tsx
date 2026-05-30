@@ -139,7 +139,7 @@ export default function ActivitesPriereStar() {
     }
     const { error } = editItem
       ? await supabase.from('activites_cultes_prieres_star').update(payload).eq('id', editItem.id)
-      : await supabase.from('activites_cultes_prieres_star').insert(payload)
+      : await supabase.from('activites_cultes_prieres_star').insert({ ...payload, actif: true })
     if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
     await logEvent('activites', editItem ? 'modification' : 'creation',
       `Prières STAR du ${form.date_activite}`, editItem?.id)

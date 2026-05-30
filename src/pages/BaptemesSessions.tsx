@@ -455,8 +455,8 @@ export default function BaptemesSessions() {
         <div className="flex justify-end mt-4"><button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button></div>
       </Modal>
 
-      <ConfirmDialog isOpen={!!deleteSessionDialog} onClose={() => setDeleteSessionDialog(null)} onConfirm={deleteSession}
-        title="Désactiver la session" message={`Désactiver "${deleteSessionDialog?.nom_session}" ?`} confirmLabel="Désactiver" variant="danger" />
+      <ConfirmDialog open={!!deleteSessionDialog} onClose={() => setDeleteSessionDialog(null)} onConfirm={deleteSession}
+        title="Désactiver la session" message={`Désactiver "${deleteSessionDialog?.nom_session}" ?`} confirmLabel="Désactiver" danger />
     </div>
   )
 }

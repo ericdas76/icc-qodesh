@@ -153,16 +153,16 @@ export default function LogistiquePage() {
         .from('logistique')
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', editing.id)
-      if (error) { toast.error('Erreur modification'); setSaving(false); return }
+      if (error) { toast.error('Erreur modification : ' + error.message); setSaving(false); return }
       toast.success('Article modifié')
-      await logEvent('logistique', editing.id, 'update', user?.id)
+      await logEvent('logistique', 'modification', `${form.designation} modifié`, editing.id)
     } else {
       const { error } = await supabase
         .from('logistique')
-        .insert({ ...payload, actif: true, auteur_creation: user?.id })
-      if (error) { toast.error('Erreur ajout article'); setSaving(false); return }
+        .insert({ ...payload, actif: true, auteur_id: user?.id })
+      if (error) { toast.error('Erreur ajout article : ' + error.message); setSaving(false); return }
       toast.success('Article ajouté')
-      await logEvent('logistique', null, 'insert', user?.id)
+      await logEvent('logistique', 'creation', `${form.designation} ajouté`)
     }
     setSaving(false)
     setModal(false)
@@ -176,7 +176,7 @@ export default function LogistiquePage() {
       .eq('id', item.id)
     if (error) { toast.error('Erreur suppression'); return }
     toast.success('Article retiré')
-    await logEvent('logistique', item.id, 'delete', user?.id)
+    await logEvent('logistique', 'suppression', `${item.designation} supprimé`, item.id)
     setConfirmDelete(null)
     loadItems()
   }
@@ -188,7 +188,7 @@ export default function LogistiquePage() {
       _pret: item.pret ? 'Oui' : 'Non',
       _maintenance: item.maintenance ? 'Oui' : 'Non',
     }))
-    exportExcel(rows, COLS_EXPORT, 'Logistique_Inventaire')
+    exportExcel('Logistique — Inventaire', COLS_EXPORT, rows)
     toast.success('Export Excel généré')
   }
 
@@ -599,13 +599,15 @@ export default function LogistiquePage() {
       </Modal>
 
       {/* Confirm Delete */}
-      {confirmDelete && (
-        <ConfirmDialog
-          message={`Supprimer "${confirmDelete.designation}" de l'inventaire ?`}
-          onConfirm={() => deleteItem(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete && deleteItem(confirmDelete)}
+        title="Supprimer un article"
+        message={confirmDelete ? `Supprimer "${confirmDelete.designation}" de l'inventaire ?` : ''}
+        confirmLabel="Supprimer"
+        danger
+      />
     </div>
   )
 }

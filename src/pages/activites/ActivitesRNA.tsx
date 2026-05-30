@@ -158,7 +158,7 @@ export default function ActivitesRNA() {
     }
     const { error } = editItem
       ? await supabase.from('activites_rna').update(payload).eq('id', editItem.id)
-      : await supabase.from('activites_rna').insert(payload)
+      : await supabase.from('activites_rna').insert({ ...payload, actif: true })
     if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
     await logEvent('activites', editItem ? 'modification' : 'creation',
       `RNA ${editItem ? 'modifié' : 'créé'} du ${form.date_activite}`, editItem?.id)

@@ -25,7 +25,7 @@ const emptyEnfant = {
 }
 
 const emptyCulte = {
-  date: '', heure_debut: '', heure_fin: '',
+  date_activite: '', heure_debut: '', heure_fin: '',
   nb_moniteurs: '', nb_monitrices: '',
   garcons: '', filles: '', visiteurs: '',
   theme: '', comptage: '',
@@ -170,16 +170,16 @@ export default function ImpactJuniorPage() {
         .from('impact_junior_enfants')
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', enfantEditing.id)
-      if (error) { toast.error('Erreur modification enfant'); setEnfantSaving(false); return }
+      if (error) { toast.error('Erreur modification enfant : ' + error.message); setEnfantSaving(false); return }
       toast.success('Enfant modifié')
-      await logEvent('impact_junior_enfants', enfantEditing.id, 'update', user?.id)
+      await logEvent('impact_junior_enfants', 'modification', `${enfantForm.prenom} ${enfantForm.nom} modifié`, enfantEditing.id)
     } else {
       const { error } = await supabase
         .from('impact_junior_enfants')
-        .insert({ ...payload, actif: true, auteur_creation: user?.id })
-      if (error) { toast.error('Erreur ajout enfant'); setEnfantSaving(false); return }
+        .insert({ ...payload, actif: true, auteur_id: user?.id })
+      if (error) { toast.error('Erreur ajout enfant : ' + error.message); setEnfantSaving(false); return }
       toast.success('Enfant ajouté')
-      await logEvent('impact_junior_enfants', null, 'insert', user?.id)
+      await logEvent('impact_junior_enfants', 'creation', `${enfantForm.prenom} ${enfantForm.nom} ajouté`)
     }
     setEnfantSaving(false)
     setEnfantModal(false)
@@ -193,7 +193,7 @@ export default function ImpactJuniorPage() {
       .eq('id', e.id)
     if (error) { toast.error('Erreur suppression'); return }
     toast.success('Enfant retiré')
-    await logEvent('impact_junior_enfants', e.id, 'delete', user?.id)
+    await logEvent('impact_junior_enfants', 'suppression', `${e.prenom} ${e.nom} retiré`, e.id)
     setConfirmDeleteEnfant(null)
     loadEnfants()
   }
@@ -208,7 +208,7 @@ export default function ImpactJuniorPage() {
   function openEditCulte(c: any) {
     setCulteEditing(c)
     setCulteForm({
-      date: c.date || '',
+      date_activite: c.date_activite || '',
       heure_debut: c.heure_debut || '',
       heure_fin: c.heure_fin || '',
       nb_moniteurs: c.nb_moniteurs != null ? String(c.nb_moniteurs) : '',
@@ -261,16 +261,16 @@ export default function ImpactJuniorPage() {
         .from('activites_impact_junior')
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', culteEditing.id)
-      if (error) { toast.error('Erreur modification culte'); setCulteSaving(false); return }
+      if (error) { toast.error('Erreur modification culte : ' + error.message); setCulteSaving(false); return }
       toast.success('Culte IJ modifié')
-      await logEvent('activites_impact_junior', culteEditing.id, 'update', user?.id)
+      await logEvent('activites_impact_junior', 'modification', `Culte IJ modifié du ${culteForm.date_activite}`, culteEditing.id)
     } else {
       const { error } = await supabase
         .from('activites_impact_junior')
-        .insert({ ...payload, ordre, actif: true, auteur_creation: user?.id })
-      if (error) { toast.error('Erreur ajout culte'); setCulteSaving(false); return }
+        .insert({ ...payload, ordre, actif: true, auteur_id: user?.id })
+      if (error) { toast.error('Erreur ajout culte : ' + error.message); setCulteSaving(false); return }
       toast.success('Culte IJ ajouté')
-      await logEvent('activites_impact_junior', null, 'insert', user?.id)
+      await logEvent('activites_impact_junior', 'creation', `Culte IJ ajouté du ${culteForm.date_activite}`)
     }
     setCulteSaving(false)
     setCulteModal(false)
@@ -284,7 +284,7 @@ export default function ImpactJuniorPage() {
       .eq('id', c.id)
     if (error) { toast.error('Erreur suppression'); return }
     toast.success('Culte retiré')
-    await logEvent('activites_impact_junior', c.id, 'delete', user?.id)
+    await logEvent('activites_impact_junior', 'suppression', `Culte IJ supprimé`, c.id)
     setConfirmDeleteCulte(null)
     loadCultes()
   }
@@ -295,7 +295,7 @@ export default function ImpactJuniorPage() {
       ...e,
       _age: calcAge(e.date_naissance),
     }))
-    exportExcel(rows, COLS_ENFANTS, 'Impact_Junior_Enfants')
+    exportExcel('Impact Junior — Enfants', COLS_ENFANTS, rows)
     toast.success('Export Excel généré')
   }
 
@@ -306,7 +306,7 @@ export default function ImpactJuniorPage() {
       _duree: calcDuree(c.heure_debut, c.heure_fin) || c.duree_minutes || '-',
       _total: (parseInt(c.garcons) || 0) + (parseInt(c.filles) || 0),
     }))
-    exportExcel(rows, COLS_CULTES, 'Impact_Junior_Cultes')
+    exportExcel('Impact Junior — Cultes', COLS_CULTES, rows)
     toast.success('Export Excel généré')
   }
 
@@ -522,7 +522,7 @@ export default function ImpactJuniorPage() {
                           <span className="badge badge-gray">#{c.ordre}</span>
                         </td>
                         <td className="px-4 py-3 font-medium text-gray-900">
-                          {c.date ? format(new Date(c.date), 'dd MMM yyyy', { locale: fr }) : '-'}
+                          {c.date_activite ? format(new Date(c.date_activite), 'dd MMM yyyy', { locale: fr }) : '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {c.heure_debut ? `${c.heure_debut}` : '-'}
@@ -722,13 +722,15 @@ export default function ImpactJuniorPage() {
       </Modal>
 
       {/* Confirm Delete Enfant */}
-      {confirmDeleteEnfant && (
-        <ConfirmDialog
-          message={`Retirer ${confirmDeleteEnfant.prenom} ${confirmDeleteEnfant.nom} de la liste Impact Junior ?`}
-          onConfirm={() => deleteEnfant(confirmDeleteEnfant)}
-          onCancel={() => setConfirmDeleteEnfant(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={!!confirmDeleteEnfant}
+        onClose={() => setConfirmDeleteEnfant(null)}
+        onConfirm={() => confirmDeleteEnfant && deleteEnfant(confirmDeleteEnfant)}
+        title="Retirer un enfant"
+        message={confirmDeleteEnfant ? `Retirer ${confirmDeleteEnfant.prenom} ${confirmDeleteEnfant.nom} de la liste Impact Junior ?` : ''}
+        confirmLabel="Retirer"
+        danger
+      />
 
       {/* ══════════════════════════════════════════════════════════
           MODALS CULTES
@@ -898,7 +900,7 @@ export default function ImpactJuniorPage() {
               <div>
                 <span className="label">Date</span>
                 <p className="font-medium">
-                  {culteViewing.date ? format(new Date(culteViewing.date), 'EEEE dd MMMM yyyy', { locale: fr }) : '-'}
+                  {culteViewing.date_activite ? format(new Date(culteViewing.date_activite), 'EEEE dd MMMM yyyy', { locale: fr }) : '-'}
                 </p>
               </div>
               <div>
@@ -954,13 +956,15 @@ export default function ImpactJuniorPage() {
       </Modal>
 
       {/* Confirm Delete Culte */}
-      {confirmDeleteCulte && (
-        <ConfirmDialog
-          message={`Supprimer le culte du ${confirmDeleteCulte.date ? format(new Date(confirmDeleteCulte.date), 'dd/MM/yyyy') : ''} ?`}
-          onConfirm={() => deleteCulte(confirmDeleteCulte)}
-          onCancel={() => setConfirmDeleteCulte(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={!!confirmDeleteCulte}
+        onClose={() => setConfirmDeleteCulte(null)}
+        onConfirm={() => confirmDeleteCulte && deleteCulte(confirmDeleteCulte)}
+        title="Supprimer un culte"
+        message={confirmDeleteCulte ? `Supprimer le culte du ${confirmDeleteCulte.date_activite ? format(new Date(confirmDeleteCulte.date_activite), 'dd/MM/yyyy') : '—'} ?` : ''}
+        confirmLabel="Supprimer"
+        danger
+      />
     </div>
   )
 }

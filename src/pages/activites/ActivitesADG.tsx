@@ -67,12 +67,12 @@ export default function ActivitesADG() {
     }
     if (editItem) {
       const { error } = await supabase.from('activites_adg').update(payload).eq('id', editItem.id)
-      if (error) { toast.error('Erreur'); setSaving(false); return }
+      if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
       await logEvent('activites', 'modification', `ADG modifié du ${form.date_activite}`, editItem.id)
       toast.success('ADG mis à jour')
     } else {
-      const { error } = await supabase.from('activites_adg').insert(payload)
-      if (error) { toast.error('Erreur'); setSaving(false); return }
+      const { error } = await supabase.from('activites_adg').insert({ ...payload, actif: true })
+      if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
       await logEvent('activites', 'creation', `Nouveau ADG du ${form.date_activite}`)
       toast.success('ADG créé')
     }

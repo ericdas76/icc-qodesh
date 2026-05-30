@@ -124,7 +124,7 @@ export default function ActivitesCelebration() {
     }
     const { error } = editItem
       ? await supabase.from('activites_cultes_celebration').update(payload).eq('id', editItem.id)
-      : await supabase.from('activites_cultes_celebration').insert(payload)
+      : await supabase.from('activites_cultes_celebration').insert({ ...payload, actif: true })
     if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
     await logEvent('activites', editItem ? 'modification' : 'creation',
       `Célébration du ${form.date_activite}`, editItem?.id)
