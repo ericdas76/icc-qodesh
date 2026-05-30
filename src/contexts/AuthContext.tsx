@@ -95,7 +95,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const hasPermission = (module: string, action: string): boolean => {
+    // Admin a tout
     if (role?.nom === 'admin') return true
+    // Si aucun rôle configuré ou aucune permission en base → accès complet par défaut
+    if (!profil?.role_id || permissions.length === 0) return true
     return permissions.some(p => p.module === module && p.action === action)
   }
 
