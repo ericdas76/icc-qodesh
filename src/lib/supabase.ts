@@ -5,22 +5,6 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export type Database = {
-  public: {
-    Tables: {
-      profils: { Row: Profil; Insert: Omit<Profil, 'created_at' | 'updated_at'>; Update: Partial<Profil> }
-      personnes: { Row: Personne; Insert: Omit<Personne, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Personne> }
-      membres: { Row: Membre; Insert: Omit<Membre, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Membre> }
-      interactions_phoning: { Row: InteractionPhoning; Insert: Omit<InteractionPhoning, 'id' | 'created_at'>; Update: Partial<InteractionPhoning> }
-      taches_suivi: { Row: TacheSuivi; Insert: Omit<TacheSuivi, 'id' | 'created_at' | 'updated_at'>; Update: Partial<TacheSuivi> }
-      familles_impact: { Row: FamilleImpact; Insert: Omit<FamilleImpact, 'id' | 'created_at' | 'updated_at'>; Update: Partial<FamilleImpact> }
-      formations: { Row: Formation; Insert: Omit<Formation, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Formation> }
-      inscriptions_formation: { Row: InscriptionFormation; Insert: Omit<InscriptionFormation, 'id' | 'created_at'>; Update: Partial<InscriptionFormation> }
-      journal_evenements: { Row: JournalEvenement; Insert: Omit<JournalEvenement, 'id' | 'created_at'>; Update: Partial<JournalEvenement> }
-    }
-  }
-}
-
 export interface Profil {
   id: string
   email: string
@@ -128,6 +112,7 @@ export interface FamilleImpact {
   copilote_id: string | null
   jour_reunion: string | null
   heure_reunion: string | null
+  date_creation: string | null
   actif: boolean
   notes: string | null
   created_at: string
@@ -137,15 +122,34 @@ export interface FamilleImpact {
   membres_familles_impact?: { personne_id: string; actif: boolean; personnes?: Personne }[]
 }
 
+// ===== PROMOTIONS V2 =====
+export interface Promotion {
+  id: string
+  nom: string
+  date_promotion: string
+  actif: boolean
+  created_at: string
+  updated_at: string
+}
+
+// ===== FORMATIONS V2 =====
 export interface Formation {
   id: string
   classe: '001' | '101' | '201' | '301'
   nom: string
   description: string | null
   annee: number
+  // V2 — nouvelles colonnes
+  promotion_id: string | null
+  code: string | null
+  enseignant: string | null
+  assistant: string | null
+  date_fin: string | null
   actif: boolean
   created_at: string
   updated_at: string
+  // relations
+  promotions?: Promotion
 }
 
 export interface SessionFormation {
@@ -183,6 +187,7 @@ export interface AbsenceFormation {
   created_at: string
 }
 
+// ===== ACTIVITÉS =====
 export interface ActiviteADG {
   id: string
   ordre: number | null
@@ -212,6 +217,10 @@ export interface ActiviteCultePriereStar {
   heure_fin: string | null
   duree_minutes: number | null
   nombre_star: number
+  // V2 — nouvelles colonnes
+  hommes: number
+  femmes: number
+  enfants: number
   comptage: string | null
   notes: string | null
   auteur_id: string | null
@@ -245,6 +254,7 @@ export interface ActiviteCulteCelebration {
   updated_at: string
 }
 
+// ===== CONGÉS V2 — nouveau schéma (date_debut/date_fin/type_conge) =====
 export interface ActiviteConge {
   id: string
   ordre: number | null
@@ -252,20 +262,14 @@ export interface ActiviteConge {
   sexe: 'M' | 'F' | null
   categorie: string | null
   departement: string | null
-  janvier: boolean
-  fevrier: boolean
-  mars: boolean
-  avril: boolean
-  mai: boolean
-  juin: boolean
-  juillet: boolean
-  aout: boolean
-  septembre: boolean
-  octobre: boolean
-  novembre: boolean
-  decembre: boolean
+  // V2 — remplace grille booléenne mensuelle
+  type_conge: 'conge' | 'sante' | 'autre' | null
+  description: string | null
+  date_debut: string | null
+  date_fin: string | null
+  mois: number | null
+  annee_conge: number | null
   remarque_speciale: string | null
-  type_absence: 'conge' | 'sante' | null
   annee: number
   auteur_id: string | null
   actif: boolean
@@ -273,16 +277,21 @@ export interface ActiviteConge {
   updated_at: string
 }
 
+// ===== RNA V2 — lieu + hommes/femmes/enfants =====
 export interface ActiviteRNA {
   id: string
   ordre: number | null
   date_activite: string
   responsable: string | null
   type_activite: string | null
+  lieu: string | null
   heure_debut: string | null
   heure_fin: string | null
   duree_minutes: number | null
   effectif: number
+  hommes: number
+  femmes: number
+  enfants: number
   comptage: string | null
   notes: string | null
   auteur_id: string | null

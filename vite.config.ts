@@ -5,7 +5,18 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
-    sourcemap: false
+    sourcemap: false,
+    minify: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'supabase': ['@supabase/supabase-js'],
+          'ui': ['lucide-react', 'react-hot-toast'],
+          'utils': ['date-fns', 'xlsx'],
+        }
+      }
+    }
   },
   resolve: {
     alias: {

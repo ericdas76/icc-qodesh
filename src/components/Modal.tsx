@@ -2,21 +2,24 @@ import { X } from 'lucide-react'
 import { useEffect } from 'react'
 
 interface Props {
-  open: boolean
+  open?: boolean
+  isOpen?: boolean
   onClose: () => void
   title: string
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
-export default function Modal({ open, onClose, title, children, size = 'md' }: Props) {
+export default function Modal({ open, isOpen, onClose, title, children, size = 'md' }: Props) {
+  const visible = open || isOpen || false
+
   useEffect(() => {
-    if (open) document.body.style.overflow = 'hidden'
+    if (visible) document.body.style.overflow = 'hidden'
     else document.body.style.overflow = ''
     return () => { document.body.style.overflow = '' }
-  }, [open])
+  }, [visible])
 
-  if (!open) return null
+  if (!visible) return null
 
   const sizeClass = {
     sm: 'max-w-md',
