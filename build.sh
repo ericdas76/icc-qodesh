@@ -16,7 +16,16 @@ mkdir -p dist/assets
 # Copier les assets statiques
 cp -f public/favicon.svg dist/ 2>/dev/null || true
 
-# Build avec esbuild — injection des variables d'environnement via --define
+# Étape 1 : Compiler Tailwind CSS complet → dist/assets/main.css
+echo "Compilation Tailwind CSS..."
+node_modules/.bin/tailwindcss \
+  -i src/index.css \
+  -o dist/assets/main.css \
+  --minify
+echo "Tailwind OK — $(wc -c < dist/assets/main.css) bytes"
+
+# Étape 2 : Bundle JS avec esbuild — injection des variables d'environnement
+# Note: on exclut le CSS de l'import (déjà compilé par tailwind)
 node_modules/.bin/esbuild src/main.tsx \
   --bundle \
   --outfile=dist/assets/main.js \
@@ -26,7 +35,7 @@ node_modules/.bin/esbuild src/main.tsx \
   --target=es2020 \
   --loader:.tsx=tsx \
   --loader:.ts=ts \
-  --loader:.css=css \
+  --loader:.css=empty \
   --minify=false \
   --define:process.env.NODE_ENV=\"production\" \
   --define:import.meta.env.VITE_SUPABASE_URL=\"${SUPABASE_URL}\" \
