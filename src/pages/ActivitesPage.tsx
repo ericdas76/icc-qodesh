@@ -4,6 +4,7 @@ import ActivitesPriereStar from './activites/ActivitesPriereStar'
 import ActivitesCelebration from './activites/ActivitesCelebration'
 import ActivitesConges from './activites/ActivitesConges'
 import ActivitesRNA from './activites/ActivitesRNA'
+import ActivitesEvangelisation from './activites/ActivitesEvangelisation'
 
 const TABS = [
   { to: '/activites/adg', label: 'ADG' },
@@ -11,6 +12,7 @@ const TABS = [
   { to: '/activites/celebration', label: 'Célébration' },
   { to: '/activites/conges', label: 'Congés' },
   { to: '/activites/rna', label: 'RNA' },
+  { to: '/activites/evangelisation', label: 'Évangélisation' },
 ]
 
 export default function ActivitesPage() {
@@ -41,6 +43,7 @@ export default function ActivitesPage() {
         <Route path="celebration" element={<ActivitesCelebration />} />
         <Route path="conges" element={<ActivitesConges />} />
         <Route path="rna" element={<ActivitesRNA />} />
+        <Route path="evangelisation" element={<ActivitesEvangelisation />} />
       </Routes>
     </div>
   )

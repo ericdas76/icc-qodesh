@@ -14,6 +14,10 @@ import FamilleImpactFichePage from './pages/FamilleImpactFichePage'
 import FormationsPage from './pages/FormationsPage'
 import FormationFichePage from './pages/FormationFichePage'
 import ActivitesPage from './pages/ActivitesPage'
+import MembresStar from './pages/MembresStar'
+import BaptemesSessions from './pages/BaptemesSessions'
+import ImpactJuniorPage from './pages/ImpactJuniorPage'
+import LogistiquePage from './pages/LogistiquePage'
 import AdministrationPage from './pages/AdministrationPage'
 import HistoriquePage from './pages/HistoriquePage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -61,6 +65,10 @@ export default function App() {
         <Route path="formations" element={<FormationsPage />} />
         <Route path="formations/:id" element={<FormationFichePage />} />
         <Route path="activites/*" element={<ActivitesPage />} />
+        <Route path="membres-star" element={<MembresStar />} />
+        <Route path="baptemes" element={<BaptemesSessions />} />
+        <Route path="impact-junior" element={<ImpactJuniorPage />} />
+        <Route path="logistique" element={<LogistiquePage />} />
         <Route path="administration" element={<AdministrationPage />} />
         <Route path="historique" element={<HistoriquePage />} />
       </Route>

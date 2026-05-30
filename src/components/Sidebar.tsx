@@ -2,7 +2,8 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import {
   LayoutDashboard, UserPlus, Phone, Users, Home, BookOpen,
-  Activity, Settings, History, ChevronRight, X, Cross
+  Activity, Settings, History, ChevronRight, X, Cross,
+  Star, Droplets, Baby, Package, Megaphone
 } from 'lucide-react'
 
 interface NavItem {
@@ -28,8 +29,13 @@ const NAV_ITEMS: NavItem[] = [
       { to: '/activites/celebration', label: 'Célébration' },
       { to: '/activites/conges', label: 'Congés' },
       { to: '/activites/rna', label: 'RNA' },
+      { to: '/activites/evangelisation', label: 'Évangélisation' },
     ]
   },
+  { to: '/membres-star', label: 'STAR', icon: <Star size={18} /> },
+  { to: '/baptemes', label: 'Baptêmes', icon: <Droplets size={18} /> },
+  { to: '/impact-junior', label: 'Impact Junior', icon: <Baby size={18} /> },
+  { to: '/logistique', label: 'Logistique', icon: <Package size={18} /> },
   { to: '/historique', label: 'Historique', icon: <History size={18} /> },
   { to: '/administration', label: 'Administration', icon: <Settings size={18} />, adminOnly: true },
 ]
