@@ -323,12 +323,12 @@ export default function ActivitesConges() {
               onChange={e => setForm(p => ({ ...p, departement: e.target.value }))} />
           </div>
           <div>
-            <label className="label">Date début</label>
+            <label className="label">Date début <span className="text-red-500">*</span></label>
             <input type="date" className="input" value={form.date_debut}
               onChange={e => setForm(p => ({ ...p, date_debut: e.target.value }))} />
           </div>
           <div>
-            <label className="label">Date fin</label>
+            <label className="label">Date fin <span className="text-red-500">*</span></label>
             <input type="date" className="input" value={form.date_fin}
               onChange={e => setForm(p => ({ ...p, date_fin: e.target.value }))} />
           </div>
@@ -348,6 +348,7 @@ export default function ActivitesConges() {
               onChange={e => setForm(p => ({ ...p, remarque_speciale: e.target.value }))} />
           </div>
         </div>
+          <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
         <div className="flex justify-end gap-2 mt-4">
           <button onClick={() => setModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={save} disabled={saving} className="btn-primary">

@@ -170,6 +170,7 @@ export default function ActivitesADG() {
           <div className="flex items-end pb-2"><span className="text-sm font-bold text-blue-700">Total : {total(form)}</span></div>
           <div className="col-span-2"><label className="label">Notes</label><textarea className="input min-h-16 resize-none" value={form.notes} onChange={set('notes')} /></div>
         </div>
+          <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
         <div className="flex justify-end gap-2 mt-4">
           <button onClick={() => setModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={save} disabled={saving} className="btn-primary">{saving && <Loader size={14} className="animate-spin" />} Enregistrer</button>

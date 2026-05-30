@@ -111,7 +111,6 @@ export default function ActivitesCelebration() {
       hommes: form.hommes || 0,
       femmes: form.femmes || 0,
       enfants: form.enfants || 0,
-      total_participants: (form.hommes || 0) + (form.femmes || 0) + (form.enfants || 0),
       priere_salut: form.priere_salut,
       visiteurs: form.visiteurs || 0,
       sainte_cene: form.sainte_cene,
@@ -244,12 +243,12 @@ export default function ActivitesCelebration() {
         title={editItem ? 'Modifier célébration' : 'Nouvelle célébration'} size="lg">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">Date *</label>
+            <label className="label">Date <span className="text-red-500">*</span></label>
             <input type="date" className="input" value={form.date_activite} onChange={handleChange('date_activite')} />
           </div>
           <div>
-            <label className="label">Durée (min) — auto</label>
-            <input type="number" className="input bg-slate-50" value={form.duree_minutes} onChange={handleChange('duree_minutes')} />
+            <label className="label">Durée (min) <span className="text-xs text-slate-400">(auto)</span></label>
+            <input type="number" className="input bg-slate-50" readOnly value={form.duree_minutes} onChange={handleChange('duree_minutes')} />
           </div>
           <div>
             <label className="label">Heure début</label>
@@ -274,7 +273,10 @@ export default function ActivitesCelebration() {
             <input type="number" min={0} className="input" value={form.enfants} onChange={handleChange('enfants')} />
           </div>
           <div className="flex items-end pb-2">
-            <span className="font-bold text-blue-700">Total : {total}</span>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 w-full text-center">
+              <p className="text-xs text-blue-500 uppercase font-medium">Total participants</p>
+              <p className="text-2xl font-bold text-blue-700">{total}</p>
+            </div>
           </div>
           <div>
             <label className="label">Visiteurs</label>
@@ -318,6 +320,7 @@ export default function ActivitesCelebration() {
             <textarea className="input min-h-16 resize-none" value={form.notes} onChange={handleChange('notes')} />
           </div>
         </div>
+          <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
         <div className="flex justify-end gap-2 mt-4">
           <button onClick={() => setModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={save} disabled={saving} className="btn-primary">

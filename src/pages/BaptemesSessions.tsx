@@ -406,6 +406,7 @@ export default function BaptemesSessions() {
             <textarea className="input resize-none" rows={2} value={formSession.notes} onChange={e => setFormSession(f => ({ ...f, notes: e.target.value }))} />
           </div>
         </div>
+          <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
           <button onClick={() => setSessionModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={saveSession} disabled={saving} className="btn-primary">
@@ -417,6 +418,7 @@ export default function BaptemesSessions() {
       {/* Modal Inscrit Ajouter/Modifier */}
       <Modal open={inscritModal} onClose={() => setInscritModal(false)} title={editInscrit ? `Modifier — ${editInscrit.prenom} ${editInscrit.nom}` : 'Nouvel inscrit'} size="xl">
         <InscritForm />
+          <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
           <button onClick={() => setInscritModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={saveInscrit} disabled={saving} className="btn-primary">

@@ -223,7 +223,7 @@ export default function ImpactJuniorPage() {
   }
 
   async function saveCulte() {
-    if (!culteForm.date) {
+    if (!culteForm.date_activite) {
       toast.error('La date est obligatoire')
       return
     }
@@ -243,7 +243,7 @@ export default function ImpactJuniorPage() {
     const duree = calcDuree(culteForm.heure_debut, culteForm.heure_fin)
 
     const payload = {
-      date: culteForm.date,
+      date_activite: culteForm.date_activite,
       heure_debut: culteForm.heure_debut || null,
       heure_fin: culteForm.heure_fin || null,
       duree_minutes: duree || null,
@@ -251,7 +251,6 @@ export default function ImpactJuniorPage() {
       nb_monitrices: parseInt(culteForm.nb_monitrices) || 0,
       garcons: g,
       filles: f,
-      total_enfants: g + f,
       visiteurs: parseInt(culteForm.visiteurs) || 0,
       theme: culteForm.theme.trim() || null,
       comptage: culteForm.comptage.trim() || null,
@@ -681,6 +680,7 @@ export default function ImpactJuniorPage() {
             />
           </div>
 
+          <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
           <div className="flex justify-end gap-3 pt-2">
             <button onClick={() => setEnfantModal(false)} className="btn btn-secondary">Annuler</button>
             <button onClick={saveEnfant} disabled={enfantSaving} className="btn btn-primary flex items-center gap-2">
@@ -746,8 +746,8 @@ export default function ImpactJuniorPage() {
             <input
               type="date"
               className="input"
-              value={culteForm.date}
-              onChange={ev => setCulteForm(f => ({ ...f, date: ev.target.value }))}
+              value={culteForm.date_activite}
+              onChange={ev => setCulteForm(f => ({ ...f, date_activite: ev.target.value }))}
             />
           </div>
 
@@ -871,6 +871,7 @@ export default function ImpactJuniorPage() {
             />
           </div>
 
+          <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
           <div className="flex justify-end gap-3 pt-2">
             <button onClick={() => setCulteModal(false)} className="btn btn-secondary">Annuler</button>
             <button onClick={saveCulte} disabled={culteSaving} className="btn btn-primary flex items-center gap-2">

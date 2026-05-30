@@ -292,6 +292,7 @@ export default function MembresStar() {
             <textarea className="input resize-none" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
           </div>
         </div>
+          <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
           <button onClick={() => setModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={save} disabled={saving} className="btn-primary">

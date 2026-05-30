@@ -528,6 +528,7 @@ export default function LogistiquePage() {
             />
           </div>
 
+          <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
           <div className="flex justify-end gap-3 pt-2">
             <button onClick={() => setModal(false)} className="btn btn-secondary">Annuler</button>
             <button onClick={save} disabled={saving} className="btn btn-primary flex items-center gap-2">
