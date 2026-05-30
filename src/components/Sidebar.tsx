@@ -68,7 +68,8 @@ export default function Sidebar({ onClose }: Props) {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         {NAV_ITEMS.map((item) => {
-          if (item.adminOnly && role?.nom !== 'admin') return null
+          // Visible si : pas adminOnly, OU rôle admin, OU aucun rôle configuré
+          if (item.adminOnly && role?.nom !== 'admin' && role !== null) return null
           const active = isActive(item.to)
 
           if (item.children) {

@@ -15,7 +15,9 @@ export default function AdministrationPage() {
   const { isAdmin } = useAuth()
   const [tab, setTab] = useState<AdminTab>('utilisateurs')
 
-  if (!isAdmin()) return (
+  // Accès si admin OU si aucun rôle configuré (setup initial)
+  const { profil } = useAuth()
+  if (!isAdmin() && profil?.role_id) return (
     <div className="flex items-center justify-center h-64 text-slate-500">
       <div className="text-center">
         <Shield size={40} className="mx-auto mb-3 text-slate-300" />
