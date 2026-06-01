@@ -48,6 +48,7 @@ export interface Personne {
   adresse: string | null
   quartier: string | null
   statut: string
+  origine: string | null
   date_premier_contact: string | null
   source_contact: string | null
   notes: string | null

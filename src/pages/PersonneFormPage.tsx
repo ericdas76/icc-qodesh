@@ -9,23 +9,21 @@ import { logEvent } from '../lib/journal'
 const SEXES = [{ value: 'M', label: 'Masculin' }, { value: 'F', label: 'Féminin' }]
 const SITUATIONS = ['celibataire', 'marie', 'divorce', 'veuf']
 const SITUATIONS_LABELS: Record<string, string> = { celibataire: 'Célibataire', marie: 'Marié(e)', divorce: 'Divorcé(e)', veuf: 'Veuf/Veuve' }
-const STATUTS = ['nouveau', 'fi', 'formation', 'star', 'departement', 'libere', 'inactif']
-const STATUTS_LABELS: Record<string, string> = { nouveau: 'Nouveau', fi: 'FI', formation: 'Formation', star: 'STAR', departement: 'Département', libere: 'Libéré', inactif: 'Inactif' }
 const SOURCES = [{ value: 'culte', label: 'Culte' }, { value: 'ami', label: 'Par un ami' }, { value: 'internet', label: 'Internet' }, { value: 'autre', label: 'Autre' }]
 
 interface FormData {
   nom: string; prenom: string; date_naissance: string; lieu_naissance: string
   telephone: string; email: string; profession: string; sexe: string
   situation_familiale: string; nombre_enfants: number; nationalite: string
-  adresse: string; quartier: string; statut: string; date_premier_contact: string
-  source_contact: string; notes: string
+  adresse: string; quartier: string; statut: string; origine: string
+  date_premier_contact: string; source_contact: string; notes: string
 }
 
 const empty: FormData = {
   nom: '', prenom: '', date_naissance: '', lieu_naissance: '',
   telephone: '', email: '', profession: '', sexe: '',
   situation_familiale: '', nombre_enfants: 0, nationalite: 'Malagasy',
-  adresse: '', quartier: '', statut: 'nouveau',
+  adresse: '', quartier: '', statut: 'nouveau', origine: '',
   date_premier_contact: new Date().toISOString().split('T')[0],
   source_contact: '', notes: ''
 }
@@ -36,10 +34,12 @@ export default function PersonneFormPage() {
   const { user } = useAuth()
   const isEdit = !!id
   const [form, setForm] = useState<FormData>(empty)
+  const [origineOptions, setOrigineOptions] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(isEdit)
 
   useEffect(() => {
+    fetchOrigines()
     if (isEdit) {
       supabase.from('personnes').select('*').eq('id', id).single().then(({ data }) => {
         if (data) setForm({
@@ -50,6 +50,7 @@ export default function PersonneFormPage() {
           situation_familiale: data.situation_familiale || '', nombre_enfants: data.nombre_enfants || 0,
           nationalite: data.nationalite || 'Malagasy', adresse: data.adresse || '',
           quartier: data.quartier || '', statut: data.statut || 'nouveau',
+          origine: data.origine || '',
           date_premier_contact: data.date_premier_contact || '',
           source_contact: data.source_contact || '', notes: data.notes || ''
         })
@@ -57,6 +58,16 @@ export default function PersonneFormPage() {
       })
     }
   }, [id])
+
+  const fetchOrigines = async () => {
+    const { data } = await supabase
+      .from('listes_parametrables')
+      .select('valeur')
+      .eq('categorie', 'origine')
+      .eq('actif', true)
+      .order('ordre')
+    setOrigineOptions((data || []).map(d => d.valeur))
+  }
 
   const set = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(prev => ({ ...prev, [field]: field === 'nombre_enfants' ? parseInt(e.target.value) || 0 : e.target.value }))
@@ -66,10 +77,12 @@ export default function PersonneFormPage() {
     e.preventDefault()
     if (!form.nom.trim() || !form.prenom.trim()) return toast.error('Nom et prénom requis')
     if (!form.nationalite.trim()) return toast.error('Nationalité requise')
+    if (!form.origine) return toast.error('Origine obligatoire')
     setLoading(true)
 
     const payload = {
       ...form,
+      origine: form.origine || null,
       date_naissance: form.date_naissance || null,
       lieu_naissance: form.lieu_naissance || null,
       date_premier_contact: form.date_premier_contact || null,
@@ -184,9 +197,10 @@ export default function PersonneFormPage() {
           <h3 className="font-semibold text-slate-800 mb-4 text-sm uppercase tracking-wide">Suivi pastoral</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label">Statut</label>
-              <select className="input" value={form.statut} onChange={set('statut')}>
-                {STATUTS.map(s => <option key={s} value={s}>{STATUTS_LABELS[s]}</option>)}
+              <label className="label">Origine *</label>
+              <select className="input" value={form.origine} onChange={set('origine')} required>
+                <option value="">— Choisir —</option>
+                {origineOptions.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>

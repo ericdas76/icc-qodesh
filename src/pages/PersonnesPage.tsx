@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { supabase, Personne } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users } from 'lucide-react'
-import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
@@ -13,7 +12,6 @@ import { logEvent } from '../lib/journal'
 import { exportExcel, exportPDF } from '../lib/export'
 
 // ─── Constantes statiques (hors composant) ───────────────────────────────────
-const STATUTS = ['', 'nouveau', 'fi', 'formation', 'star', 'departement', 'libere', 'inactif']
 const SEXES = [{ v: '', l: 'Tous' }, { v: 'M', l: 'Homme' }, { v: 'F', l: 'Femme' }]
 const SOURCES = ['culte', 'ami', 'internet', 'autre']
 const SITUATIONS = ['celibataire', 'marie', 'divorce', 'veuf']
@@ -22,7 +20,7 @@ const emptyForm = {
   nom: '', prenom: '', sexe: '', date_naissance: '', lieu_naissance: '',
   telephone: '', email: '', profession: '', situation_familiale: '',
   nombre_enfants: 0, nationalite: 'Malagasy', adresse: '', quartier: '',
-  statut: 'nouveau', date_premier_contact: format(new Date(), 'yyyy-MM-dd'),
+  statut: 'nouveau', origine: '', date_premier_contact: format(new Date(), 'yyyy-MM-dd'),
   source_contact: '', notes: ''
 }
 
@@ -32,7 +30,7 @@ const COLS_EXPORT = [
   { header: 'Sexe', key: 'sexe' },
   { header: 'Téléphone', key: 'telephone' },
   { header: 'Email', key: 'email' },
-  { header: 'Statut', key: 'statut' },
+  { header: 'Origine', key: 'origine' },
   { header: 'Quartier', key: 'quartier' },
   { header: 'Nationalité', key: 'nationalite' },
   { header: 'Date contact', key: 'date_premier_contact' },
@@ -43,9 +41,10 @@ const COLS_EXPORT = [
 interface PersonneFormProps {
   form: typeof emptyForm
   setForm: React.Dispatch<React.SetStateAction<typeof emptyForm>>
+  origineOptions: string[]
 }
 
-function PersonneForm({ form, setForm }: PersonneFormProps) {
+function PersonneForm({ form, setForm, origineOptions }: PersonneFormProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
@@ -153,14 +152,16 @@ function PersonneForm({ form, setForm }: PersonneFormProps) {
         />
       </div>
       <div>
-        <label className="label">Statut</label>
+        <label className="label">Origine *</label>
         <select
           className="input"
-          value={form.statut}
-          onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}
+          value={form.origine}
+          onChange={e => setForm(f => ({ ...f, origine: e.target.value }))}
+          required
         >
-          {STATUTS.filter(Boolean).map(s => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          <option value="">-- Sélectionner --</option>
+          {origineOptions.map(o => (
+            <option key={o} value={o}>{o}</option>
           ))}
         </select>
       </div>
@@ -219,9 +220,10 @@ function PersonneForm({ form, setForm }: PersonneFormProps) {
 export default function PersonnesPage() {
   const { hasPermission, user } = useAuth()
   const [personnes, setPersonnes] = useState<Personne[]>([])
+  const [origineOptions, setOrigineOptions] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filterStatut, setFilterStatut] = useState('')
+  const [filterOrigine, setFilterOrigine] = useState('')
   const [filterSexe, setFilterSexe] = useState('')
 
   // Modals
@@ -240,7 +242,10 @@ export default function PersonnesPage() {
   const canDelete = hasPermission('membres', 'supprimer')
   const canExport = hasPermission('membres', 'exporter')
 
-  useEffect(() => { fetchPersonnes() }, [])
+  useEffect(() => {
+    fetchPersonnes()
+    fetchOrigines()
+  }, [])
 
   const fetchPersonnes = async () => {
     setLoading(true)
@@ -249,12 +254,22 @@ export default function PersonnesPage() {
     setLoading(false)
   }
 
+  const fetchOrigines = async () => {
+    const { data } = await supabase
+      .from('listes_parametrables')
+      .select('valeur')
+      .eq('categorie', 'origine')
+      .eq('actif', true)
+      .order('ordre')
+    setOrigineOptions((data || []).map(d => d.valeur))
+  }
+
   const filtered = personnes.filter(p => {
     const s = search.toLowerCase()
     const matchSearch = !search || p.nom.toLowerCase().includes(s) || p.prenom.toLowerCase().includes(s) || (p.telephone || '').includes(s)
-    const matchStatut = !filterStatut || p.statut === filterStatut
+    const matchOrigine = !filterOrigine || p.origine === filterOrigine
     const matchSexe = !filterSexe || p.sexe === filterSexe
-    return matchSearch && matchStatut && matchSexe
+    return matchSearch && matchOrigine && matchSexe
   })
 
   // --- Ajouter ---
@@ -262,9 +277,11 @@ export default function PersonnesPage() {
 
   const doAdd = async () => {
     if (!form.nom.trim() || !form.prenom.trim()) { toast.error('Nom et prénom requis'); return }
+    if (!form.origine) { toast.error('Origine obligatoire'); return }
     setSaving(true)
     const { data, error } = await supabase.from('personnes').insert({
       ...form,
+      origine: form.origine || null,
       date_naissance: form.date_naissance || null,
       date_premier_contact: form.date_premier_contact || null,
       nombre_enfants: Number(form.nombre_enfants),
@@ -288,7 +305,8 @@ export default function PersonnesPage() {
       situation_familiale: p.situation_familiale || '',
       nombre_enfants: p.nombre_enfants, nationalite: p.nationalite,
       adresse: p.adresse || '', quartier: p.quartier || '',
-      statut: p.statut, date_premier_contact: p.date_premier_contact || '',
+      statut: p.statut, origine: p.origine || '',
+      date_premier_contact: p.date_premier_contact || '',
       source_contact: p.source_contact || '', notes: p.notes || ''
     })
     setEditModal(true)
@@ -297,9 +315,11 @@ export default function PersonnesPage() {
   const doEdit = async () => {
     if (!editItem) return
     if (!form.nom.trim() || !form.prenom.trim()) { toast.error('Nom et prénom requis'); return }
+    if (!form.origine) { toast.error('Origine obligatoire'); return }
     setSaving(true)
     const { error } = await supabase.from('personnes').update({
       ...form,
+      origine: form.origine || null,
       date_naissance: form.date_naissance || null,
       date_premier_contact: form.date_premier_contact || null,
       nombre_enfants: Number(form.nombre_enfants),
@@ -369,10 +389,10 @@ export default function PersonnesPage() {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <select className="input" value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
-            <option value="">Tous les statuts</option>
-            {STATUTS.filter(Boolean).map(s => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          <select className="input" value={filterOrigine} onChange={e => setFilterOrigine(e.target.value)}>
+            <option value="">Toutes les origines</option>
+            {origineOptions.map(o => (
+              <option key={o} value={o}>{o}</option>
             ))}
           </select>
           <select className="input" value={filterSexe} onChange={e => setFilterSexe(e.target.value)}>
@@ -404,7 +424,7 @@ export default function PersonnesPage() {
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Nom complet</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Sexe</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Statut</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Origine</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Quartier</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Contact</th>
                   <th className="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
@@ -416,7 +436,7 @@ export default function PersonnesPage() {
                     <td className="px-4 py-3 font-medium text-gray-900">{p.prenom} {p.nom}</td>
                     <td className="px-4 py-3 text-gray-600">{p.sexe === 'M' ? 'Homme' : p.sexe === 'F' ? 'Femme' : '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{p.telephone || '—'}</td>
-                    <td className="px-4 py-3"><StatusBadge statut={p.statut} /></td>
+                    <td className="px-4 py-3 text-gray-600">{p.origine || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{p.quartier || '—'}</td>
                     <td className="px-4 py-3 text-gray-600 text-xs">
                       {p.date_premier_contact ? format(new Date(p.date_premier_contact), 'dd MMM yyyy', { locale: fr }) : '—'}
@@ -448,7 +468,7 @@ export default function PersonnesPage() {
 
       {/* Modal Ajouter */}
       <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Nouvelle personne" size="xl">
-        <PersonneForm form={form} setForm={setForm} />
+        <PersonneForm form={form} setForm={setForm} origineOptions={origineOptions} />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setAddModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={doAdd} disabled={saving} className="btn-primary">
@@ -459,7 +479,7 @@ export default function PersonnesPage() {
 
       {/* Modal Modifier */}
       <Modal isOpen={editModal} onClose={() => setEditModal(false)} title={`Modifier — ${editItem?.prenom} ${editItem?.nom}`} size="xl">
-        <PersonneForm form={form} setForm={setForm} />
+        <PersonneForm form={form} setForm={setForm} origineOptions={origineOptions} />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setEditModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={doEdit} disabled={saving} className="btn-primary">
@@ -484,7 +504,7 @@ export default function PersonnesPage() {
                 ['Situation familiale', viewItem.situation_familiale || '—'],
                 ["Nombre d'enfants", String(viewItem.nombre_enfants)],
                 ['Nationalité', viewItem.nationalite],
-                ['Statut', viewItem.statut],
+                ['Origine', viewItem.origine || '—'],
                 ['Adresse', viewItem.adresse || '—'],
                 ['Quartier', viewItem.quartier || '—'],
                 ['Source contact', viewItem.source_contact || '—'],

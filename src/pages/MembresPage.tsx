@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users } from 'lucide-react'
-import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
@@ -13,15 +12,13 @@ import { logEvent } from '../lib/journal'
 import { exportExcel, exportPDF } from '../lib/export'
 
 // ─── Constantes statiques (hors composant) ───────────────────────────────────
-const STATUTS_FILTRE = ['', 'nouveau', 'fi', 'formation', 'star', 'departement', 'libere', 'inactif']
-
 const COLS_EXPORT = [
   { header: 'N° Membre', key: 'numero_membre' },
   { header: 'Nom', key: 'personnes.nom' },
   { header: 'Prénom', key: 'personnes.prenom' },
   { header: 'Téléphone', key: 'personnes.telephone' },
   { header: 'Catégorie', key: 'categorie' },
-  { header: 'Statut', key: 'statut' },
+  { header: 'Origine', key: 'personnes.origine' },
   { header: 'Département', key: 'departement' },
   { header: 'Date adhésion', key: 'date_adhesion' },
 ]
@@ -44,7 +41,6 @@ interface MembreFormProps {
   setForm: React.Dispatch<React.SetStateAction<typeof emptyForm>>
   personnesList: any[]
   editItem: any | null
-  statutOptions: string[]
   categorieOptions: string[]
   departementOptions: string[]
 }
@@ -55,7 +51,6 @@ function MembreForm({
   setForm,
   personnesList,
   editItem,
-  statutOptions,
   categorieOptions,
   departementOptions,
 }: MembreFormProps) {
@@ -88,10 +83,10 @@ function MembreForm({
         <div>
           <label className="label">N° Membre</label>
           <input
-            className="input"
+            className="input bg-gray-50 text-gray-500"
             value={form.numero_membre}
-            onChange={e => setForm(f => ({ ...f, numero_membre: e.target.value }))}
-            placeholder="Ex : ICC-2025-001"
+            readOnly
+            placeholder="Auto-généré"
           />
         </div>
         <div>
@@ -104,7 +99,7 @@ function MembreForm({
           />
         </div>
         <div>
-          <label className="label">Catégorie</label>
+          <label className="label">Catégorie *</label>
           <select
             className="input"
             value={form.categorie}
@@ -113,18 +108,6 @@ function MembreForm({
             <option value="">-- Sélectionner --</option>
             {categorieOptions.map(c => (
               <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label">Statut</label>
-          <select
-            className="input"
-            value={form.statut}
-            onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}
-          >
-            {statutOptions.filter(Boolean).map(s => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
             ))}
           </select>
         </div>
@@ -168,12 +151,11 @@ export default function MembresPage() {
   const { hasPermission, user } = useAuth()
   const [membres, setMembres] = useState<any[]>([])
   const [personnesList, setPersonnesList] = useState<any[]>([])
-  const [statutOptions, setStatutOptions] = useState<string[]>([])
   const [categorieOptions, setCategorieOptions] = useState<string[]>([])
   const [departementOptions, setDepartementOptions] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filterStatut, setFilterStatut] = useState('')
+  const [filterCategorie, setFilterCategorie] = useState('')
 
   // Modals
   const [addModal, setAddModal] = useState(false)
@@ -214,7 +196,7 @@ export default function MembresPage() {
     setLoading(true)
     const { data } = await supabase
       .from('membres')
-      .select('*, personnes(*)')
+      .select('*, personnes(id, nom, prenom, telephone, email, origine)')
       .eq('actif', true)
       .order('created_at', { ascending: false })
     setMembres(data || [])
@@ -228,6 +210,17 @@ export default function MembresPage() {
     setPersonnesList((data || []).filter((p: any) => !existingIds.includes(p.id)))
   }
 
+  // ─── Auto-numérotation ICC-YYYY-NNN ─────────────────────────────────────────
+  const genererNumeroMembre = async (): Promise<string> => {
+    const annee = new Date().getFullYear()
+    const { count } = await supabase
+      .from('membres')
+      .select('*', { count: 'exact', head: true })
+      .like('numero_membre', `ICC-${annee}-%`)
+    const seq = String((count || 0) + 1).padStart(3, '0')
+    return `ICC-${annee}-${seq}`
+  }
+
   const filtered = membres.filter(m => {
     const s = search.toLowerCase()
     const p = m.personnes || {}
@@ -236,18 +229,20 @@ export default function MembresPage() {
       (p.prenom || '').toLowerCase().includes(s) ||
       (p.telephone || '').includes(s) ||
       (m.numero_membre || '').toLowerCase().includes(s)
-    const matchStatut = !filterStatut || m.statut === filterStatut
-    return matchSearch && matchStatut
+    const matchCategorie = !filterCategorie || m.categorie === filterCategorie
+    return matchSearch && matchCategorie
   })
 
   // --- Ajouter ---
-  const openAdd = () => {
-    setForm({ ...emptyForm })
+  const openAdd = async () => {
+    const numero = await genererNumeroMembre()
+    setForm({ ...emptyForm, numero_membre: numero })
     setAddModal(true)
   }
 
   const doAdd = async () => {
     if (!form.personne_id) { toast.error('Sélectionner une personne'); return }
+    if (!form.categorie) { toast.error('Catégorie obligatoire'); return }
     setSaving(true)
     const { data, error } = await supabase.from('membres').insert({
       personne_id: form.personne_id,
@@ -261,8 +256,8 @@ export default function MembresPage() {
     }).select().single()
     setSaving(false)
     if (error) { toast.error('Erreur : ' + error.message); return }
-    await logEvent('membres', 'creer', data.id, `Création membre`)
-    toast.success('Membre créé')
+    await logEvent('membres', 'creer', data.id, `Création membre ${form.numero_membre}`)
+    toast.success(`Membre créé — ${form.numero_membre}`)
     setAddModal(false)
     fetchMembres()
     fetchPersonnes()
@@ -286,6 +281,7 @@ export default function MembresPage() {
 
   const doEdit = async () => {
     if (!editItem) return
+    if (!form.categorie) { toast.error('Catégorie obligatoire'); return }
     setSaving(true)
     const { error } = await supabase.from('membres').update({
       numero_membre: form.numero_membre || null,
@@ -362,10 +358,10 @@ export default function MembresPage() {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <select className="input" value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
-            <option value="">Tous les statuts</option>
-            {STATUTS_FILTRE.filter(Boolean).map(s => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          <select className="input" value={filterCategorie} onChange={e => setFilterCategorie(e.target.value)}>
+            <option value="">Toutes les catégories</option>
+            {categorieOptions.map(c => (
+              <option key={c} value={c}>{c}</option>
             ))}
           </select>
         </div>
@@ -395,7 +391,7 @@ export default function MembresPage() {
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Nom complet</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Catégorie</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Statut</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Origine</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Département</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Adhésion</th>
                   <th className="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
@@ -410,7 +406,7 @@ export default function MembresPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">{m.personnes?.telephone || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{m.categorie || '—'}</td>
-                    <td className="px-4 py-3"><StatusBadge statut={m.statut} /></td>
+                    <td className="px-4 py-3 text-gray-600">{m.personnes?.origine || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{m.departement || '—'}</td>
                     <td className="px-4 py-3 text-gray-600 text-xs">
                       {m.date_adhesion ? format(new Date(m.date_adhesion), 'dd MMM yyyy', { locale: fr }) : '—'}
@@ -447,7 +443,6 @@ export default function MembresPage() {
           setForm={setForm}
           personnesList={personnesList}
           editItem={null}
-          statutOptions={STATUTS_FILTRE}
           categorieOptions={categorieOptions}
           departementOptions={departementOptions}
         />
@@ -472,7 +467,6 @@ export default function MembresPage() {
           setForm={setForm}
           personnesList={personnesList}
           editItem={editItem}
-          statutOptions={STATUTS_FILTRE}
           categorieOptions={categorieOptions}
           departementOptions={departementOptions}
         />
@@ -497,7 +491,7 @@ export default function MembresPage() {
               {[
                 ['N° Membre', viewItem.numero_membre || '—'],
                 ['Catégorie', viewItem.categorie || '—'],
-                ['Statut', viewItem.statut],
+                ['Origine', viewItem.personnes?.origine || '—'],
                 ['Département', viewItem.departement || '—'],
                 ['Date adhésion', viewItem.date_adhesion ? format(new Date(viewItem.date_adhesion), 'dd MMMM yyyy', { locale: fr }) : '—'],
                 ['Téléphone', viewItem.personnes?.telephone || '—'],
