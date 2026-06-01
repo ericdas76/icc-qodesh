@@ -38,7 +38,7 @@ export default function TopBar({ onMenuClick }: Props) {
       </button>
       <h1 className="font-semibold text-slate-800 flex-1 text-sm md:text-base">{title}</h1>
       <div className="flex items-center gap-2">
-        <span className="hidden md:block text-sm text-slate-500">
+        <span className="text-sm text-slate-500 truncate max-w-[140px]">
           {profil?.prenom} {profil?.nom}
         </span>
         <button

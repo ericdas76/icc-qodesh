@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, Personne } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Search, Eye, Edit2, UserX, Download, FileText } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users } from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -12,6 +12,7 @@ import { fr } from 'date-fns/locale'
 import { logEvent } from '../lib/journal'
 import { exportExcel, exportPDF } from '../lib/export'
 
+// ─── Constantes statiques (hors composant) ───────────────────────────────────
 const STATUTS = ['', 'nouveau', 'fi', 'formation', 'star', 'departement', 'libere', 'inactif']
 const SEXES = [{ v: '', l: 'Tous' }, { v: 'M', l: 'Homme' }, { v: 'F', l: 'Femme' }]
 const SOURCES = ['culte', 'ami', 'internet', 'autre']
@@ -38,6 +39,183 @@ const COLS_EXPORT = [
   { header: 'Source', key: 'source_contact' },
 ]
 
+// ─── Formulaire extrait HORS du composant parent (fix React error #130 + bug curseur) ──
+interface PersonneFormProps {
+  form: typeof emptyForm
+  setForm: React.Dispatch<React.SetStateAction<typeof emptyForm>>
+}
+
+function PersonneForm({ form, setForm }: PersonneFormProps) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="label">Nom *</label>
+        <input
+          className="input"
+          value={form.nom}
+          onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
+          placeholder="Nom de famille"
+        />
+      </div>
+      <div>
+        <label className="label">Prénom *</label>
+        <input
+          className="input"
+          value={form.prenom}
+          onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))}
+          placeholder="Prénom"
+        />
+      </div>
+      <div>
+        <label className="label">Sexe</label>
+        <select
+          className="input"
+          value={form.sexe}
+          onChange={e => setForm(f => ({ ...f, sexe: e.target.value }))}
+        >
+          <option value="">-- Sélectionner --</option>
+          <option value="M">Homme</option>
+          <option value="F">Femme</option>
+        </select>
+      </div>
+      <div>
+        <label className="label">Date de naissance</label>
+        <input
+          type="date"
+          className="input"
+          value={form.date_naissance}
+          onChange={e => setForm(f => ({ ...f, date_naissance: e.target.value }))}
+        />
+      </div>
+      <div>
+        <label className="label">Lieu de naissance</label>
+        <input
+          className="input"
+          value={form.lieu_naissance}
+          onChange={e => setForm(f => ({ ...f, lieu_naissance: e.target.value }))}
+        />
+      </div>
+      <div>
+        <label className="label">Téléphone</label>
+        <input
+          className="input"
+          value={form.telephone}
+          onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
+          placeholder="+261 34 00 000 00"
+        />
+      </div>
+      <div>
+        <label className="label">Email</label>
+        <input
+          type="email"
+          className="input"
+          value={form.email}
+          onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+        />
+      </div>
+      <div>
+        <label className="label">Profession</label>
+        <input
+          className="input"
+          value={form.profession}
+          onChange={e => setForm(f => ({ ...f, profession: e.target.value }))}
+        />
+      </div>
+      <div>
+        <label className="label">Situation familiale</label>
+        <select
+          className="input"
+          value={form.situation_familiale}
+          onChange={e => setForm(f => ({ ...f, situation_familiale: e.target.value }))}
+        >
+          <option value="">-- Sélectionner --</option>
+          {SITUATIONS.map(s => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="label">Nombre d'enfants</label>
+        <input
+          type="number"
+          min={0}
+          className="input"
+          value={form.nombre_enfants}
+          onChange={e => setForm(f => ({ ...f, nombre_enfants: Number(e.target.value) }))}
+        />
+      </div>
+      <div>
+        <label className="label">Nationalité</label>
+        <input
+          className="input"
+          value={form.nationalite}
+          onChange={e => setForm(f => ({ ...f, nationalite: e.target.value }))}
+        />
+      </div>
+      <div>
+        <label className="label">Statut</label>
+        <select
+          className="input"
+          value={form.statut}
+          onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}
+        >
+          {STATUTS.filter(Boolean).map(s => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="label">Adresse</label>
+        <input
+          className="input"
+          value={form.adresse}
+          onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))}
+        />
+      </div>
+      <div>
+        <label className="label">Quartier</label>
+        <input
+          className="input"
+          value={form.quartier}
+          onChange={e => setForm(f => ({ ...f, quartier: e.target.value }))}
+        />
+      </div>
+      <div>
+        <label className="label">Date premier contact</label>
+        <input
+          type="date"
+          className="input"
+          value={form.date_premier_contact}
+          onChange={e => setForm(f => ({ ...f, date_premier_contact: e.target.value }))}
+        />
+      </div>
+      <div>
+        <label className="label">Source contact</label>
+        <select
+          className="input"
+          value={form.source_contact}
+          onChange={e => setForm(f => ({ ...f, source_contact: e.target.value }))}
+        >
+          <option value="">-- Sélectionner --</option>
+          {SOURCES.map(s => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+      </div>
+      <div className="md:col-span-2">
+        <label className="label">Notes</label>
+        <textarea
+          className="input"
+          rows={3}
+          value={form.notes}
+          onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ─── Composant principal ──────────────────────────────────────────────────────
 export default function PersonnesPage() {
   const { hasPermission, user } = useAuth()
   const [personnes, setPersonnes] = useState<Personne[]>([])
@@ -54,7 +232,6 @@ export default function PersonnesPage() {
   const [editItem, setEditItem] = useState<Personne | null>(null)
   const [desactiverDialog, setDesactiverDialog] = useState<Personne | null>(null)
 
-  // Formulaire
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
 
@@ -81,16 +258,15 @@ export default function PersonnesPage() {
   })
 
   // --- Ajouter ---
-  const openAdd = () => {
-    setForm({ ...emptyForm })
-    setAddModal(true)
-  }
+  const openAdd = () => { setForm({ ...emptyForm }); setAddModal(true) }
 
   const doAdd = async () => {
     if (!form.nom.trim() || !form.prenom.trim()) { toast.error('Nom et prénom requis'); return }
     setSaving(true)
     const { data, error } = await supabase.from('personnes').insert({
       ...form,
+      date_naissance: form.date_naissance || null,
+      date_premier_contact: form.date_premier_contact || null,
       nombre_enfants: Number(form.nombre_enfants),
       auteur_creation: user?.id,
     }).select().single()
@@ -123,7 +299,10 @@ export default function PersonnesPage() {
     if (!form.nom.trim() || !form.prenom.trim()) { toast.error('Nom et prénom requis'); return }
     setSaving(true)
     const { error } = await supabase.from('personnes').update({
-      ...form, nombre_enfants: Number(form.nombre_enfants),
+      ...form,
+      date_naissance: form.date_naissance || null,
+      date_premier_contact: form.date_premier_contact || null,
+      nombre_enfants: Number(form.nombre_enfants),
     }).eq('id', editItem.id)
     setSaving(false)
     if (error) { toast.error('Erreur : ' + error.message); return }
@@ -151,92 +330,6 @@ export default function PersonnesPage() {
   const doExportExcel = () => exportExcel('Personnes', COLS_EXPORT, filtered, 'Personnes')
   const doExportPDF = () => exportPDF('Liste des Personnes', COLS_EXPORT, filtered, `${filtered.length} enregistrements`)
 
-  // --- Formulaire partagé ---
-  const PersonneForm = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label className="label">Nom *</label>
-        <input className="input" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} placeholder="Nom de famille" />
-      </div>
-      <div>
-        <label className="label">Prénom *</label>
-        <input className="input" value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))} placeholder="Prénom" />
-      </div>
-      <div>
-        <label className="label">Sexe</label>
-        <select className="input" value={form.sexe} onChange={e => setForm(f => ({ ...f, sexe: e.target.value }))}>
-          <option value="">-- Sélectionner --</option>
-          <option value="M">Homme</option>
-          <option value="F">Femme</option>
-        </select>
-      </div>
-      <div>
-        <label className="label">Date de naissance</label>
-        <input type="date" className="input" value={form.date_naissance} onChange={e => setForm(f => ({ ...f, date_naissance: e.target.value }))} />
-      </div>
-      <div>
-        <label className="label">Lieu de naissance</label>
-        <input className="input" value={form.lieu_naissance} onChange={e => setForm(f => ({ ...f, lieu_naissance: e.target.value }))} />
-      </div>
-      <div>
-        <label className="label">Téléphone</label>
-        <input className="input" value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} placeholder="+261 34 00 000 00" />
-      </div>
-      <div>
-        <label className="label">Email</label>
-        <input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-      </div>
-      <div>
-        <label className="label">Profession</label>
-        <input className="input" value={form.profession} onChange={e => setForm(f => ({ ...f, profession: e.target.value }))} />
-      </div>
-      <div>
-        <label className="label">Situation familiale</label>
-        <select className="input" value={form.situation_familiale} onChange={e => setForm(f => ({ ...f, situation_familiale: e.target.value }))}>
-          <option value="">-- Sélectionner --</option>
-          {SITUATIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="label">Nombre d'enfants</label>
-        <input type="number" min={0} className="input" value={form.nombre_enfants} onChange={e => setForm(f => ({ ...f, nombre_enfants: Number(e.target.value) }))} />
-      </div>
-      <div>
-        <label className="label">Nationalité</label>
-        <input className="input" value={form.nationalite} onChange={e => setForm(f => ({ ...f, nationalite: e.target.value }))} />
-      </div>
-      <div>
-        <label className="label">Statut</label>
-        <select className="input" value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}>
-          {STATUTS.filter(Boolean).map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="label">Adresse</label>
-        <input className="input" value={form.adresse} onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))} />
-      </div>
-      <div>
-        <label className="label">Quartier</label>
-        <input className="input" value={form.quartier} onChange={e => setForm(f => ({ ...f, quartier: e.target.value }))} />
-      </div>
-      <div>
-        <label className="label">Date premier contact</label>
-        <input type="date" className="input" value={form.date_premier_contact} onChange={e => setForm(f => ({ ...f, date_premier_contact: e.target.value }))} />
-      </div>
-      <div>
-        <label className="label">Source contact</label>
-        <select className="input" value={form.source_contact} onChange={e => setForm(f => ({ ...f, source_contact: e.target.value }))}>
-          <option value="">-- Sélectionner --</option>
-          {SOURCES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-        </select>
-      </div>
-      <div className="md:col-span-2">
-        <label className="label">Notes</label>
-        <textarea className="input" rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-      </div>
-    </div>
-  )
-
   return (
     <div className="space-y-6">
       {/* En-tête */}
@@ -248,16 +341,16 @@ export default function PersonnesPage() {
         <div className="flex gap-2 flex-wrap">
           {canExport && (
             <>
-              <button onClick={doExportPDF} className="btn btn-secondary flex items-center gap-1">
+              <button onClick={doExportPDF} className="btn-secondary flex items-center gap-1">
                 <FileText size={16} /> PDF
               </button>
-              <button onClick={doExportExcel} className="btn btn-secondary flex items-center gap-1">
+              <button onClick={doExportExcel} className="btn-secondary flex items-center gap-1">
                 <Download size={16} /> Excel
               </button>
             </>
           )}
           {canCreate && (
-            <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
+            <button onClick={openAdd} className="btn-primary flex items-center gap-2">
               <Plus size={18} /> Ajouter
             </button>
           )}
@@ -269,11 +362,18 @@ export default function PersonnesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input className="input pl-9" placeholder="Nom, prénom, téléphone..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input
+              className="input pl-9"
+              placeholder="Nom, prénom, téléphone..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
           </div>
           <select className="input" value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
             <option value="">Tous les statuts</option>
-            {STATUTS.filter(Boolean).map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+            {STATUTS.filter(Boolean).map(s => (
+              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+            ))}
           </select>
           <select className="input" value={filterSexe} onChange={e => setFilterSexe(e.target.value)}>
             {SEXES.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
@@ -286,7 +386,16 @@ export default function PersonnesPage() {
         {loading ? (
           <div className="p-8 text-center text-gray-400">Chargement...</div>
         ) : filtered.length === 0 ? (
-          <EmptyState message="Aucune personne trouvée" />
+          <EmptyState
+            icon={Users}
+            title="Aucune personne trouvée"
+            description="Aucune personne ne correspond à votre recherche."
+            action={canCreate ? (
+              <button onClick={openAdd} className="btn-primary flex items-center gap-2">
+                <Plus size={16} /> Ajouter une personne
+              </button>
+            ) : undefined}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -339,10 +448,10 @@ export default function PersonnesPage() {
 
       {/* Modal Ajouter */}
       <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Nouvelle personne" size="xl">
-        <PersonneForm />
+        <PersonneForm form={form} setForm={setForm} />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-          <button onClick={() => setAddModal(false)} className="btn btn-secondary">Annuler</button>
-          <button onClick={doAdd} disabled={saving} className="btn btn-primary">
+          <button onClick={() => setAddModal(false)} className="btn-secondary">Annuler</button>
+          <button onClick={doAdd} disabled={saving} className="btn-primary">
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         </div>
@@ -350,10 +459,10 @@ export default function PersonnesPage() {
 
       {/* Modal Modifier */}
       <Modal isOpen={editModal} onClose={() => setEditModal(false)} title={`Modifier — ${editItem?.prenom} ${editItem?.nom}`} size="xl">
-        <PersonneForm />
+        <PersonneForm form={form} setForm={setForm} />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-          <button onClick={() => setEditModal(false)} className="btn btn-secondary">Annuler</button>
-          <button onClick={doEdit} disabled={saving} className="btn btn-primary">
+          <button onClick={() => setEditModal(false)} className="btn-secondary">Annuler</button>
+          <button onClick={doEdit} disabled={saving} className="btn-primary">
             {saving ? 'Enregistrement...' : 'Mettre à jour'}
           </button>
         </div>
@@ -373,7 +482,7 @@ export default function PersonnesPage() {
                 ['Email', viewItem.email || '—'],
                 ['Profession', viewItem.profession || '—'],
                 ['Situation familiale', viewItem.situation_familiale || '—'],
-                ['Nombre d\'enfants', String(viewItem.nombre_enfants)],
+                ["Nombre d'enfants", String(viewItem.nombre_enfants)],
                 ['Nationalité', viewItem.nationalite],
                 ['Statut', viewItem.statut],
                 ['Adresse', viewItem.adresse || '—'],
@@ -399,19 +508,19 @@ export default function PersonnesPage() {
           </div>
         )}
         <div className="flex justify-end mt-4">
-          <button onClick={() => setViewModal(false)} className="btn btn-secondary">Fermer</button>
+          <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
         </div>
       </Modal>
 
       {/* Dialog désactivation */}
       <ConfirmDialog
-        isOpen={!!desactiverDialog}
+        open={!!desactiverDialog}
         onClose={() => setDesactiverDialog(null)}
         onConfirm={doDesactiver}
         title="Désactiver la personne"
         message={`Désactiver ${desactiverDialog?.prenom} ${desactiverDialog?.nom} ? Cette action est réversible.`}
         confirmLabel="Désactiver"
-        variant="danger"
+        danger
       />
     </div>
   )

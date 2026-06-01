@@ -134,21 +134,31 @@ function UtilisateursTab() {
   )
 }
 
-const CATEGORIES = ['statut_membre', 'issue_phoning', 'type_appel', 'departement', 'nationalite', 'type_activite_rna', 'situation_familiale']
-const CATEGORIES_LABELS: Record<string, string> = { statut_membre: 'Statuts membres', issue_phoning: 'Issues phoning', type_appel: 'Types appel', departement: 'Départements', nationalite: 'Nationalités', type_activite_rna: 'Types RNA', situation_familiale: 'Situations familiales' }
+const CATEGORIES = ['statut_membre', 'departement', 'situation_familiale', 'nationalite', 'issue_phoning', 'type_appel', 'type_activite_rna']
+const CATEGORIES_LABELS: Record<string, string> = {
+  statut_membre: 'Catégories membres',
+  departement: 'Départements',
+  situation_familiale: 'Situations familiales',
+  nationalite: 'Nationalités',
+  issue_phoning: 'Issues phoning',
+  type_appel: 'Types appel',
+  type_activite_rna: 'Types activité RNA',
+}
 
 function ListesTab() {
   const [listes, setListes] = useState<ListeParametrable[]>([])
-  const [selectedCat, setSelectedCat] = useState('departement')
+  const [selectedCat, setSelectedCat] = useState('statut_membre')
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [editItem, setEditItem] = useState<ListeParametrable | null>(null)
   const [form, setForm] = useState({ valeur: '', ordre: 0 })
+  const [confirmDesactiver, setConfirmDesactiver] = useState<ListeParametrable | null>(null)
 
   useEffect(() => { fetchListes() }, [selectedCat])
 
   const fetchListes = async () => {
     setLoading(true)
+    // Afficher toutes les entrées (actives ET inactives) pour permettre la réactivation
     const { data } = await supabase.from('listes_parametrables').select('*').eq('categorie', selectedCat).order('ordre')
     setListes(data || [])
     setLoading(false)
@@ -157,18 +167,22 @@ function ListesTab() {
   const save = async () => {
     if (!form.valeur.trim()) return toast.error('Valeur requise')
     if (editItem) {
-      await supabase.from('listes_parametrables').update({ valeur: form.valeur, ordre: form.ordre }).eq('id', editItem.id)
+      const { error } = await supabase.from('listes_parametrables').update({ valeur: form.valeur, ordre: form.ordre }).eq('id', editItem.id)
+      if (error) { toast.error('Erreur : ' + error.message); return }
     } else {
-      await supabase.from('listes_parametrables').insert({ categorie: selectedCat, valeur: form.valeur, ordre: form.ordre })
+      const { error } = await supabase.from('listes_parametrables').insert({ categorie: selectedCat, valeur: form.valeur, ordre: form.ordre, actif: true })
+      if (error) { toast.error('Erreur : ' + error.message); return }
     }
     toast.success('Enregistré')
     setModal(false)
     fetchListes()
   }
 
-  const supprimer = async (id: string) => {
-    await supabase.from('listes_parametrables').update({ actif: false }).eq('id', id)
-    toast.success('Entrée désactivée')
+  const toggleActif = async (item: ListeParametrable) => {
+    const { error } = await supabase.from('listes_parametrables').update({ actif: !item.actif }).eq('id', item.id)
+    if (error) { toast.error('Erreur'); return }
+    toast.success(item.actif ? 'Entrée désactivée' : 'Entrée réactivée')
+    setConfirmDesactiver(null)
     fetchListes()
   }
 
@@ -176,42 +190,113 @@ function ListesTab() {
     <div>
       <div className="flex flex-wrap gap-2 mb-4">
         {CATEGORIES.map(c => (
-          <button key={c} onClick={() => setSelectedCat(c)} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${selectedCat === c ? 'bg-blue-700 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
+          <button
+            key={c}
+            onClick={() => setSelectedCat(c)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              selectedCat === c ? 'bg-blue-700 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
             {CATEGORIES_LABELS[c]}
           </button>
         ))}
       </div>
+
       <div className="card">
         <div className="p-4 border-b flex items-center justify-between">
-          <h3 className="font-semibold text-slate-700">{CATEGORIES_LABELS[selectedCat]}</h3>
-          <button onClick={() => { setEditItem(null); setForm({ valeur: '', ordre: listes.length + 1 }); setModal(true) }} className="btn-primary text-xs py-1"><Plus size={14} /> Ajouter</button>
+          <div>
+            <h3 className="font-semibold text-slate-700">{CATEGORIES_LABELS[selectedCat]}</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{listes.filter(l => l.actif).length} active(s) · {listes.filter(l => !l.actif).length} inactive(s)</p>
+          </div>
+          <button
+            onClick={() => { setEditItem(null); setForm({ valeur: '', ordre: listes.length + 1 }); setModal(true) }}
+            className="btn-primary flex items-center gap-1 text-xs py-1.5"
+          >
+            <Plus size={14} /> Ajouter
+          </button>
         </div>
-        {loading ? <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700" /></div> : (
+
+        {loading ? (
+          <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700" /></div>
+        ) : (
           <div className="divide-y">
             {listes.map(l => (
-              <div key={l.id} className={`flex items-center justify-between p-3 ${!l.actif ? 'opacity-50' : ''}`}>
+              <div key={l.id} className={`flex items-center justify-between p-3 ${!l.actif ? 'bg-slate-50' : ''}`}>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-400 w-6">{l.ordre}</span>
-                  <span className="font-medium text-slate-800">{l.valeur}</span>
-                  {!l.actif && <span className="badge bg-red-100 text-red-600">Inactif</span>}
+                  <span className="text-xs text-slate-400 w-6 text-right">{l.ordre}</span>
+                  <span className={`font-medium ${l.actif ? 'text-slate-800' : 'text-slate-400 line-through'}`}>{l.valeur}</span>
+                  {!l.actif && <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-600">Inactif</span>}
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => { setEditItem(l); setForm({ valeur: l.valeur, ordre: l.ordre }); setModal(true) }} className="p-1.5 rounded hover:bg-slate-100 text-slate-400"><Edit size={14} /></button>
-                  <button onClick={() => supprimer(l.id)} className="p-1.5 rounded hover:bg-red-100 text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
+                  <button
+                    onClick={() => { setEditItem(l); setForm({ valeur: l.valeur, ordre: l.ordre }); setModal(true) }}
+                    className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                    title="Modifier"
+                  >
+                    <Edit size={14} />
+                  </button>
+                  <button
+                    onClick={() => l.actif ? setConfirmDesactiver(l) : toggleActif(l)}
+                    className={`p-1.5 rounded text-xs ${
+                      l.actif
+                        ? 'hover:bg-red-50 text-slate-400 hover:text-red-500'
+                        : 'hover:bg-green-50 text-slate-400 hover:text-green-600'
+                    }`}
+                    title={l.actif ? 'Désactiver' : 'Réactiver'}
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             ))}
-            {listes.length === 0 && <p className="p-4 text-sm text-slate-500 text-center">Aucune entrée</p>}
+            {listes.length === 0 && (
+              <p className="p-6 text-sm text-slate-500 text-center">Aucune entrée — cliquez sur Ajouter pour commencer</p>
+            )}
           </div>
         )}
       </div>
-      <Modal open={modal} onClose={() => setModal(false)} title={editItem ? 'Modifier' : 'Nouvelle entrée'} size="sm">
-        <div className="space-y-3">
-          <div><label className="label">Valeur</label><input className="input" value={form.valeur} onChange={e => setForm(p => ({ ...p, valeur: e.target.value }))} /></div>
-          <div><label className="label">Ordre</label><input type="number" className="input" value={form.ordre} onChange={e => setForm(p => ({ ...p, ordre: parseInt(e.target.value) || 0 }))} /></div>
-          <div className="flex justify-end gap-2"><button onClick={() => setModal(false)} className="btn-secondary">Annuler</button><button onClick={save} className="btn-primary"><Save size={14} /> Enregistrer</button></div>
+
+      {/* Modal ajout/modif */}
+      <Modal isOpen={modal} onClose={() => setModal(false)} title={editItem ? `Modifier — ${editItem.valeur}` : `Nouvelle entrée — ${CATEGORIES_LABELS[selectedCat]}`} size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="label">Valeur *</label>
+            <input
+              className="input"
+              value={form.valeur}
+              onChange={e => setForm(p => ({ ...p, valeur: e.target.value }))}
+              placeholder="Ex : Louange"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="label">Ordre d'affichage</label>
+            <input
+              type="number"
+              className="input"
+              value={form.ordre}
+              onChange={e => setForm(p => ({ ...p, ordre: parseInt(e.target.value) || 0 }))}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setModal(false)} className="btn-secondary">Annuler</button>
+            <button onClick={save} className="btn-primary flex items-center gap-1">
+              <Save size={14} /> Enregistrer
+            </button>
+          </div>
         </div>
       </Modal>
+
+      {/* Confirm désactivation */}
+      <ConfirmDialog
+        open={!!confirmDesactiver}
+        onClose={() => setConfirmDesactiver(null)}
+        onConfirm={() => confirmDesactiver && toggleActif(confirmDesactiver)}
+        title="Désactiver cette entrée"
+        message={`Désactiver "${confirmDesactiver?.valeur}" ? Elle n'apparaîtra plus dans les listes de saisie.`}
+        confirmLabel="Désactiver"
+        danger
+      />
     </div>
   )
 }
