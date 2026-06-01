@@ -220,12 +220,12 @@ export default function LogistiquePage() {
         </div>
         <div className="flex gap-2">
           {hasPermission('logistique', 'export') && (
-            <button onClick={doExport} className="btn btn-secondary flex items-center gap-2">
+            <button onClick={doExport} className="btn-secondary flex items-center gap-2">
               <Download size={16} /> Export Excel
             </button>
           )}
           {hasPermission('logistique', 'create') && (
-            <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
+            <button onClick={openAdd} className="btn-primary flex items-center gap-2">
               <Plus size={16} /> Ajouter un article
             </button>
           )}
@@ -324,13 +324,14 @@ export default function LogistiquePage() {
         </div>
       ) : itemsFiltres.length === 0 ? (
         <EmptyState
+          icon={Package}
           title="Aucun article trouvé"
           description={nbTotal === 0
             ? "Commencez par ajouter le premier article à l'inventaire."
             : "Aucun article ne correspond aux filtres sélectionnés."}
-          action={nbTotal === 0 && hasPermission('logistique', 'create')
-            ? { label: 'Ajouter un article', onClick: openAdd }
-            : undefined}
+          action={nbTotal === 0 && hasPermission('logistique', 'create') ? (
+            <button onClick={openAdd} className="btn-primary"><Plus size={16} /> Ajouter un article</button>
+          ) : undefined}
         />
       ) : (
         /* Affichage par catégorie */
@@ -530,8 +531,8 @@ export default function LogistiquePage() {
 
           <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
           <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setModal(false)} className="btn btn-secondary">Annuler</button>
-            <button onClick={save} disabled={saving} className="btn btn-primary flex items-center gap-2">
+            <button onClick={() => setModal(false)} className="btn-secondary">Annuler</button>
+            <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2">
               {saving && <Loader size={14} className="animate-spin" />}
               {editing ? 'Modifier' : 'Ajouter'}
             </button>
@@ -587,12 +588,12 @@ export default function LogistiquePage() {
               {hasPermission('logistique', 'update') && (
                 <button
                   onClick={() => { setViewing(null); openEdit(viewing) }}
-                  className="btn btn-secondary flex items-center gap-2"
+                  className="btn-secondary flex items-center gap-2"
                 >
                   <Edit2 size={14} /> Modifier
                 </button>
               )}
-              <button onClick={() => setViewing(null)} className="btn btn-primary">Fermer</button>
+              <button onClick={() => setViewing(null)} className="btn-primary">Fermer</button>
             </div>
           </div>
         )}

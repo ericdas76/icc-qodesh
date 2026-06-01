@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit2, Loader, Download, Eye } from 'lucide-react'
+import { Plus, Edit2, Loader, Download, Eye, Droplets, Users } from 'lucide-react'
 import Modal from '../components/Modal'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -275,7 +275,7 @@ export default function BaptemesSessions() {
           </div>
           {loadingSessions ? (
             <div className="flex justify-center h-32 items-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700" /></div>
-          ) : sessions.length === 0 ? <EmptyState message="Aucune session de baptême" /> : (
+          ) : sessions.length === 0 ? <EmptyState icon={Droplets} title="Aucune session de baptême" description="Créez la première session." /> : (
             <div className="card overflow-hidden p-0">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b">
@@ -341,7 +341,7 @@ export default function BaptemesSessions() {
 
           {loadingInscrits ? (
             <div className="flex justify-center h-32 items-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700" /></div>
-          ) : inscrits.length === 0 ? <EmptyState message="Aucun inscrit" /> : (
+          ) : inscrits.length === 0 ? <EmptyState icon={Users} title="Aucun inscrit" description="Ajoutez des candidats au baptême." /> : (
             <div className="card overflow-hidden p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

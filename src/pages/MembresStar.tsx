@@ -176,7 +176,7 @@ export default function MembresStar() {
       {loading ? (
         <div className="flex items-center justify-center h-40"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" /></div>
       ) : filtered.length === 0 ? (
-        <EmptyState message="Aucun membre STAR enregistré" />
+        <EmptyState icon={Star} title="Aucun membre STAR enregistré" description="Ajoutez le premier membre STAR." />
       ) : (
         <div className="card overflow-hidden p-0">
           <div className="overflow-x-auto">

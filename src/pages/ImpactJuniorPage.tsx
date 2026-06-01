@@ -302,7 +302,7 @@ export default function ImpactJuniorPage() {
   function exportCultes() {
     const rows = cultes.map(c => ({
       ...c,
-      _date_fmt: c.date ? format(new Date(c.date), 'dd/MM/yyyy') : '-',
+      _date_fmt: c.date_activite ? format(new Date(c.date_activite), 'dd/MM/yyyy') : '-',
       _duree: calcDuree(c.heure_debut, c.heure_fin) || c.duree_minutes || '-',
       _total: (parseInt(c.garcons) || 0) + (parseInt(c.filles) || 0),
     }))
@@ -402,9 +402,12 @@ export default function ImpactJuniorPage() {
             </div>
           ) : enfants.length === 0 ? (
             <EmptyState
+              icon={Baby}
               title="Aucun enfant enregistré"
               description="Commencez par ajouter le premier enfant Impact Junior."
-              action={hasPermission('impact_junior', 'create') ? { label: 'Ajouter un enfant', onClick: openAddEnfant } : undefined}
+              action={hasPermission('impact_junior', 'create') ? (
+                <button onClick={openAddEnfant} className="btn-primary"><Plus size={16} /> Ajouter un enfant</button>
+              ) : undefined}
             />
           ) : (
             <div className="card overflow-hidden p-0">
@@ -498,9 +501,12 @@ export default function ImpactJuniorPage() {
             </div>
           ) : cultes.length === 0 ? (
             <EmptyState
+              icon={Users}
               title="Aucun culte IJ enregistré"
               description="Commencez par ajouter le premier culte Impact Junior."
-              action={hasPermission('impact_junior', 'create') ? { label: 'Ajouter un culte', onClick: openAddCulte } : undefined}
+              action={hasPermission('impact_junior', 'create') ? (
+                <button onClick={openAddCulte} className="btn-primary"><Plus size={16} /> Ajouter un culte</button>
+              ) : undefined}
             />
           ) : (
             <div className="card overflow-hidden p-0">
@@ -682,8 +688,8 @@ export default function ImpactJuniorPage() {
 
           <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
           <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setEnfantModal(false)} className="btn btn-secondary">Annuler</button>
-            <button onClick={saveEnfant} disabled={enfantSaving} className="btn btn-primary flex items-center gap-2">
+            <button onClick={() => setEnfantModal(false)} className="btn-secondary">Annuler</button>
+            <button onClick={saveEnfant} disabled={enfantSaving} className="btn-primary flex items-center gap-2">
               {enfantSaving && <Loader size={14} className="animate-spin" />}
               {enfantEditing ? 'Modifier' : 'Ajouter'}
             </button>
@@ -715,7 +721,7 @@ export default function ImpactJuniorPage() {
               <div><span className="label">Notes</span><p className="text-gray-600 mt-1">{enfantViewing.notes}</p></div>
             )}
             <div className="flex justify-end pt-2">
-              <button onClick={() => setEnfantViewing(null)} className="btn btn-secondary">Fermer</button>
+              <button onClick={() => setEnfantViewing(null)} className="btn-secondary">Fermer</button>
             </div>
           </div>
         )}
@@ -875,8 +881,8 @@ export default function ImpactJuniorPage() {
 
           <p className="text-xs text-slate-400 mt-1"><span className="text-red-500">*</span> Champ obligatoire</p>
           <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setCulteModal(false)} className="btn btn-secondary">Annuler</button>
-            <button onClick={saveCulte} disabled={culteSaving} className="btn btn-primary flex items-center gap-2">
+            <button onClick={() => setCulteModal(false)} className="btn-secondary">Annuler</button>
+            <button onClick={saveCulte} disabled={culteSaving} className="btn-primary flex items-center gap-2">
               {culteSaving && <Loader size={14} className="animate-spin" />}
               {culteEditing ? 'Modifier' : 'Ajouter'}
             </button>
@@ -949,7 +955,7 @@ export default function ImpactJuniorPage() {
               <div><span className="label">Comptage / Observations</span><p className="text-gray-600">{culteViewing.comptage}</p></div>
             )}
             <div className="flex justify-end pt-2">
-              <button onClick={() => setCulteViewing(null)} className="btn btn-secondary">Fermer</button>
+              <button onClick={() => setCulteViewing(null)} className="btn-secondary">Fermer</button>
             </div>
           </div>
         )}

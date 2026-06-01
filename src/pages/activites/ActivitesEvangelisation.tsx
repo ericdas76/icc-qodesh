@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { Plus, Edit2, Loader, Download } from 'lucide-react'
+import { Plus, Edit2, Loader, Download, Megaphone } from 'lucide-react'
 import Modal from '../../components/Modal'
 import EmptyState from '../../components/EmptyState'
 import toast from 'react-hot-toast'
@@ -179,7 +179,7 @@ export default function ActivitesEvangelisation() {
       {loading ? (
         <div className="flex items-center justify-center h-40"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700" /></div>
       ) : activites.length === 0 ? (
-        <EmptyState message="Aucune sortie enregistrée" />
+        <EmptyState icon={Megaphone} title="Aucune sortie enregistrée" description="Ajoutez la première sortie d'évangélisation." />
       ) : (
         <div className="card overflow-hidden p-0">
           <div className="overflow-x-auto">
