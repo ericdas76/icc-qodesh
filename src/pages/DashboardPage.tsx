@@ -81,6 +81,7 @@ export default function DashboardPage() {
       supabase.from('inscriptions_formation').select('*', { count: 'exact', head: true }).in('statut', ['inscrit', 'en_cours']),
       supabase.from('taches_suivi').select('*', { count: 'exact', head: true }).eq('statut', 'en_attente').lt('echeance', today),
       supabase.from('activites_conges').select('*', { count: 'exact', head: true })
+        .eq('actif', true)
         .eq('statut', 'en_cours')
         .eq('annee', annee),
       supabase.from('personnes').select('id, nom, prenom, statut, created_at, nationalite').eq('actif', true).order('created_at', { ascending: false }).limit(5),
@@ -110,6 +111,7 @@ export default function DashboardPage() {
     const { data } = await supabase
       .from('activites_conges')
       .select('id, prenom_nom, departement, date_debut, date_fin')
+      .eq('actif', true)
       .eq('statut', 'en_cours')
       .eq('annee', annee)
       .order('date_debut', { ascending: true })
