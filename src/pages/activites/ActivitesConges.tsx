@@ -118,13 +118,18 @@ export default function ActivitesConges() {
     setLoadingMembres(false)
   }
 
-  // ── Générer le prochain N° ordre CON-NNN ──
-  const genererOrdre = async (annee: number): Promise<string> => {
+  // ── Générer le prochain N° ordre (entier) ──
+  const genererOrdre = async (annee: number): Promise<number> => {
     const { count } = await supabase
       .from('activites_conges')
       .select('*', { count: 'exact', head: true })
       .eq('annee', annee)
-    const n = (count || 0) + 1
+    return (count || 0) + 1
+  }
+
+  // ── Affichage N° ordre → "CON-NNN" ──
+  const fmtOrdre = (n: number | null | undefined): string => {
+    if (!n) return '—'
     return `CON-${String(n).padStart(3, '0')}`
   }
 
@@ -193,7 +198,7 @@ export default function ActivitesConges() {
     if (!form.date_fin) return toast.error('Date de fin obligatoire')
     setSaving(true)
 
-    let ordre = editItem?.ordre || null
+    let ordre: number | null = editItem?.ordre || null
 
     // Générer N° ordre automatique uniquement à la création
     if (!editItem) {
@@ -228,7 +233,7 @@ export default function ActivitesConges() {
     if (error) { toast.error('Erreur : ' + error.message); setSaving(false); return }
 
     await logEvent('activites', editItem ? 'modifier' : 'creer',
-      `Congé ${editItem ? 'modifié' : 'créé'} : ${form.prenom_nom} (${ordre})`, editItem?.id)
+      `Congé ${editItem ? 'modifié' : 'créé'} : ${form.prenom_nom} (${fmtOrdre(ordre)})`, editItem?.id)
 
     toast.success(editItem ? 'Congé mis à jour' : 'Congé enregistré')
     setModal(false)
@@ -338,7 +343,7 @@ export default function ActivitesConges() {
               <tbody className="divide-y">
                 {filtered.map(a => (
                   <tr key={a.id} className={`hover:bg-slate-50 ${a.statut === 'annule' ? 'opacity-60' : ''}`}>
-                    <td className="px-3 py-1.5 text-slate-400 font-mono">{a.ordre || '—'}</td>
+                    <td className="px-3 py-1.5 text-slate-400 font-mono">{fmtOrdre(a.ordre)}</td>
                     <td className="px-3 py-1.5 font-medium text-slate-800">{a.prenom_nom}</td>
                     <td className="px-3 py-1.5 text-slate-500">{a.categorie || '—'}</td>
                     <td className="px-3 py-1.5 text-slate-500 max-w-24 truncate">{a.departement || '—'}</td>
@@ -384,7 +389,7 @@ export default function ActivitesConges() {
           {editItem && (
             <div className="bg-violet-50 border border-violet-100 rounded-lg px-4 py-2 flex items-center gap-3">
               <span className="text-xs text-violet-500 font-medium">N° Ordre</span>
-              <span className="font-mono font-bold text-violet-700">{editItem.ordre || '—'}</span>
+              <span className="font-mono font-bold text-violet-700">{fmtOrdre(editItem.ordre)}</span>
             </div>
           )}
           {!editItem && (
@@ -522,7 +527,7 @@ export default function ActivitesConges() {
           <div className="space-y-4 text-sm">
             <div className="flex items-center justify-between">
               <span className="font-mono font-bold text-violet-700 bg-violet-50 px-3 py-1 rounded-lg">
-                {viewItem.ordre || '—'}
+                {fmtOrdre(viewItem.ordre)}
               </span>
               {statutBadge(viewItem.statut)}
             </div>
