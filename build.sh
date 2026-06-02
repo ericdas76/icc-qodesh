@@ -16,6 +16,25 @@ mkdir -p dist/assets
 # Copier les assets statiques
 cp -f public/favicon.svg dist/ 2>/dev/null || true
 
+# Générer index.html dans dist/
+cat > dist/index.html << 'HTML'
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ICC-Qodesh — ICC Antananarivo</title>
+    <meta name="description" content="Gestion des membres - ICC Antananarivo" />
+    <link rel="stylesheet" href="/assets/main.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/assets/main.js"></script>
+  </body>
+</html>
+HTML
+
 # Étape 1 : Compiler Tailwind CSS complet → dist/assets/main.css
 echo "Compilation Tailwind CSS..."
 node_modules/.bin/tailwindcss \
