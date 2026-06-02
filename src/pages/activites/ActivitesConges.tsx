@@ -219,9 +219,6 @@ export default function ActivitesConges() {
       payload.mois = new Date(form.date_debut).getMonth() + 1
     }
 
-    // Stocker membre_id si la colonne existe
-    if (form.membre_id) payload.membre_id = form.membre_id
-
     const { error } = editItem
       ? await supabase.from('activites_conges').update(payload).eq('id', editItem.id)
       : await supabase.from('activites_conges').insert({ ...payload, actif: true })
