@@ -11,6 +11,8 @@ import { fr } from 'date-fns/locale'
 import { logEvent } from '../lib/journal'
 import { exportExcel, exportPDF } from '../lib/export'
 
+const PAGE_SIZE = 25
+
 // Niveaux de classe
 const TYPES_CLASSE = [
   { code: '001', label: '001 — Suis-Christ' },
@@ -80,6 +82,7 @@ export default function FormationsPage() {
 
   const [saving, setSaving] = useState(false)
   const [pagePromos, setPagePromos] = useState(1)
+  const [pageClasses, setPageClasses] = useState(1)
 
   const canCreate = hasPermission('formations', 'creer')
   const canEdit = hasPermission('formations', 'modifier')
@@ -380,6 +383,7 @@ export default function FormationsPage() {
   )
 
   const paginatedPromos = promotions.slice((pagePromos - 1) * PAGE_SIZE, pagePromos * PAGE_SIZE)
+  const paginatedClasses = formations.slice((pageClasses - 1) * PAGE_SIZE, pageClasses * PAGE_SIZE)
 
   return (
     <div className="space-y-6">
