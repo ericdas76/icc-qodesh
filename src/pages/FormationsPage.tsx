@@ -79,6 +79,7 @@ export default function FormationsPage() {
   const [inscriptions, setInscriptions] = useState<any[]>([])
 
   const [saving, setSaving] = useState(false)
+  const [pagePromos, setPagePromos] = useState(1)
 
   const canCreate = hasPermission('formations', 'creer')
   const canEdit = hasPermission('formations', 'modifier')
@@ -377,6 +378,8 @@ export default function FormationsPage() {
       </div>
     </div>
   )
+
+  const paginatedPromos = promotions.slice((pagePromos - 1) * PAGE_SIZE, pagePromos * PAGE_SIZE)
 
   return (
     <div className="space-y-6">
