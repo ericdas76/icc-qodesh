@@ -1,5 +1,5 @@
 # prod
-dist/
+# dist/ — inclus dans le repo pour déploiement Cloudflare Pages
 
 # dev
 .yarn/
