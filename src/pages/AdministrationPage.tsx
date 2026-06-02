@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, Profil, Role, ListeParametrable } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit, Trash2, Users, List, Shield, Loader, Save } from 'lucide-react'
+import { Plus, Edit, Trash2, Users, List, Shield, Loader, Save, Search, UserCog } from 'lucide-react'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import toast from 'react-hot-toast'
@@ -9,7 +9,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { logEvent } from '../lib/journal'
 
-type AdminTab = 'utilisateurs' | 'listes' | 'roles'
+type AdminTab = 'utilisateurs' | 'listes' | 'roles' | 'personnes'
 
 export default function AdministrationPage() {
   const { isAdmin } = useAuth()
@@ -30,6 +30,7 @@ export default function AdministrationPage() {
     { id: 'utilisateurs', label: 'Utilisateurs', icon: <Users size={16} /> },
     { id: 'listes', label: 'Listes paramétrables', icon: <List size={16} /> },
     { id: 'roles', label: 'Rôles', icon: <Shield size={16} /> },
+    { id: 'personnes', label: 'Personnes', icon: <UserCog size={16} /> },
   ]
 
   return (
@@ -49,6 +50,7 @@ export default function AdministrationPage() {
       {tab === 'utilisateurs' && <UtilisateursTab />}
       {tab === 'listes' && <ListesTab />}
       {tab === 'roles' && <RolesTab />}
+      {tab === 'personnes' && <PersonnesTab />}
     </div>
   )
 }
@@ -343,6 +345,271 @@ function RolesTab() {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ─── Onglet Personnes ─────────────────────────────────────────────────────────
+
+const SITUATIONS = ['celibataire', 'marie', 'divorce', 'veuf']
+const SOURCES = ['culte', 'ami', 'internet', 'autre']
+
+function PersonnesTab() {
+  const [personnes, setPersonnes] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [editItem, setEditItem] = useState<any | null>(null)
+  const [modal, setModal] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [origineOptions, setOrigineOptions] = useState<string[]>([])
+  const [langueOptions, setLangueOptions] = useState<string[]>([])
+  const [form, setForm] = useState<any>({})
+
+  useEffect(() => { fetchPersonnes(); fetchOptions() }, [])
+
+  const fetchPersonnes = async () => {
+    setLoading(true)
+    const { data } = await supabase.from('personnes').select('*').eq('actif', true).order('nom')
+    setPersonnes(data || [])
+    setLoading(false)
+  }
+
+  const fetchOptions = async () => {
+    const [{ data: o }, { data: l }] = await Promise.all([
+      supabase.from('listes_parametrables').select('valeur').eq('categorie', 'origine').eq('actif', true).order('ordre'),
+      supabase.from('listes_parametrables').select('valeur').eq('categorie', 'langue').eq('actif', true).order('ordre'),
+    ])
+    setOrigineOptions((o || []).map((x: any) => x.valeur))
+    setLangueOptions((l || []).map((x: any) => x.valeur))
+  }
+
+  const openEdit = (p: any) => {
+    setEditItem(p)
+    setForm({
+      nom: p.nom || '', prenom: p.prenom || '', sexe: p.sexe || '',
+      date_naissance: p.date_naissance || '', lieu_naissance: p.lieu_naissance || '',
+      telephone: p.telephone || '', telephone_whatsapp: p.telephone_whatsapp || '',
+      email: p.email || '', profession: p.profession || '',
+      situation_familiale: p.situation_familiale || '',
+      nombre_enfants: p.nombre_enfants || 0, nationalite: p.nationalite || 'Malagasy',
+      adresse: p.adresse || '', quartier: p.quartier || '',
+      origine: p.origine || '', langue: p.langue || '',
+      suivi_par: p.suivi_par || '', de_passage: p.de_passage ? 'oui' : 'non',
+      date_premier_contact: p.date_premier_contact || '',
+      source_contact: p.source_contact || '', notes: p.notes || '',
+    })
+    setModal(true)
+  }
+
+  const doSave = async () => {
+    if (!form.nom.trim() || !form.prenom.trim()) { toast.error('Nom et prénom requis'); return }
+    setSaving(true)
+
+    const champLabels: Record<string, string> = {
+      nom: 'Nom', prenom: 'Prénom', sexe: 'Sexe', date_naissance: 'Date naissance',
+      lieu_naissance: 'Lieu naissance', telephone: 'Téléphone', telephone_whatsapp: 'WhatsApp',
+      email: 'Email', profession: 'Profession', situation_familiale: 'Situation familiale',
+      nombre_enfants: 'Nb enfants', nationalite: 'Nationalité', adresse: 'Adresse',
+      quartier: 'Quartier', origine: 'Origine', langue: 'Langue', suivi_par: 'Suivi par',
+      de_passage: 'De passage', date_premier_contact: 'Date 1er contact',
+      source_contact: 'Source contact', notes: 'Notes',
+    }
+
+    const anciennesValeurs: Record<string, unknown> = {}
+    const nouvellesValeurs: Record<string, unknown> = {}
+    const champsModifies: string[] = []
+
+    Object.keys(champLabels).forEach(key => {
+      const ancien = editItem[key] ?? ''
+      const nouveau = key === 'de_passage' ? (form[key] === 'oui')
+        : key === 'nombre_enfants' ? Number(form[key])
+        : (form[key] ?? '')
+      const ancienNorm = key === 'de_passage' ? Boolean(ancien) : ancien
+      if (String(ancienNorm) !== String(nouveau)) {
+        champsModifies.push(champLabels[key])
+        anciennesValeurs[champLabels[key]] = ancienNorm
+        nouvellesValeurs[champLabels[key]] = nouveau
+      }
+    })
+
+    const { error } = await supabase.from('personnes').update({
+      nom: form.nom.toUpperCase(), prenom: form.prenom,
+      sexe: form.sexe || null, date_naissance: form.date_naissance || null,
+      lieu_naissance: form.lieu_naissance || null, telephone: form.telephone || null,
+      telephone_whatsapp: form.telephone_whatsapp || null, email: form.email || null,
+      profession: form.profession || null, situation_familiale: form.situation_familiale || null,
+      nombre_enfants: Number(form.nombre_enfants) || 0, nationalite: form.nationalite || 'Malagasy',
+      adresse: form.adresse || null, quartier: form.quartier || null,
+      origine: form.origine || null, langue: form.langue || null,
+      suivi_par: form.suivi_par || null, de_passage: form.de_passage === 'oui',
+      date_premier_contact: form.date_premier_contact || null,
+      source_contact: form.source_contact || null, notes: form.notes || null,
+    }).eq('id', editItem.id)
+
+    setSaving(false)
+    if (error) { toast.error('Erreur : ' + error.message); return }
+
+    if (champsModifies.length > 0) {
+      await logEvent(
+        'administration', 'modifier',
+        `Modification personne ${form.prenom} ${form.nom} — champs : ${champsModifies.join(', ')}`,
+        editItem.id, anciennesValeurs, nouvellesValeurs
+      )
+    }
+
+    toast.success('Personne mise à jour')
+    setModal(false)
+    fetchPersonnes()
+  }
+
+  const filtered = personnes.filter(p => {
+    const s = search.toLowerCase()
+    return !search || p.nom.toLowerCase().includes(s) || p.prenom.toLowerCase().includes(s)
+      || (p.telephone || '').includes(s) || (p.email || '').toLowerCase().includes(s)
+  })
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-4">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input className="input pl-9" placeholder="Rechercher par nom, prénom, téléphone, email..."
+            value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <p className="text-xs text-slate-400 mt-2">{filtered.length} personne{filtered.length > 1 ? 's' : ''} trouvée{filtered.length > 1 ? 's' : ''}</p>
+      </div>
+
+      <div className="card overflow-hidden p-0">
+        {loading ? (
+          <div className="p-8 text-center text-gray-400 flex items-center justify-center gap-2">
+            <Loader size={18} className="animate-spin" /> Chargement...
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  {['Nom complet', 'Sexe', 'Téléphone', 'Email', 'Origine', '1er contact', 'Action'].map(h => (
+                    <th key={h} className="text-left px-4 py-3 font-semibold text-gray-600">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map(p => (
+                  <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-900">{p.prenom} {p.nom}</td>
+                    <td className="px-4 py-3 text-gray-600">{p.sexe === 'M' ? 'Homme' : p.sexe === 'F' ? 'Femme' : '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{p.telephone || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">{p.email || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{p.origine || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">
+                      {p.date_premier_contact ? format(new Date(p.date_premier_contact), 'dd MMM yyyy', { locale: fr }) : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => openEdit(p)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 hover:bg-violet-100 text-xs font-medium transition-colors">
+                        <Edit size={13} /> Modifier
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">Aucune personne trouvée</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Modal modification */}
+      <Modal isOpen={modal} onClose={() => setModal(false)} title={`Modifier — ${editItem?.prenom} ${editItem?.nom}`} size="xl">
+        {editItem && (
+          <div className="space-y-5">
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Identité</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="label">Nom *</label><input className="input uppercase" value={form.nom} onChange={e => setForm((f: any) => ({ ...f, nom: e.target.value }))} /></div>
+                <div><label className="label">Prénom *</label><input className="input" value={form.prenom} onChange={e => setForm((f: any) => ({ ...f, prenom: e.target.value }))} /></div>
+                <div>
+                  <label className="label">Sexe</label>
+                  <select className="input" value={form.sexe} onChange={e => setForm((f: any) => ({ ...f, sexe: e.target.value }))}>
+                    <option value="">— Sélectionner —</option>
+                    <option value="M">Homme</option>
+                    <option value="F">Femme</option>
+                  </select>
+                </div>
+                <div><label className="label">Nationalité</label><input className="input" value={form.nationalite} onChange={e => setForm((f: any) => ({ ...f, nationalite: e.target.value }))} /></div>
+                <div><label className="label">Date de naissance</label><input type="date" className="input" value={form.date_naissance} onChange={e => setForm((f: any) => ({ ...f, date_naissance: e.target.value }))} /></div>
+                <div><label className="label">Lieu de naissance</label><input className="input" value={form.lieu_naissance} onChange={e => setForm((f: any) => ({ ...f, lieu_naissance: e.target.value }))} /></div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Contact</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="label">Téléphone</label><input className="input" value={form.telephone} onChange={e => setForm((f: any) => ({ ...f, telephone: e.target.value }))} placeholder="+261 34 00 000 00" /></div>
+                <div><label className="label">WhatsApp</label><input className="input" value={form.telephone_whatsapp} onChange={e => setForm((f: any) => ({ ...f, telephone_whatsapp: e.target.value }))} placeholder="+261 34 00 000 00" /></div>
+                <div><label className="label">Email</label><input type="email" className="input" value={form.email} onChange={e => setForm((f: any) => ({ ...f, email: e.target.value }))} /></div>
+                <div><label className="label">Profession</label><input className="input" value={form.profession} onChange={e => setForm((f: any) => ({ ...f, profession: e.target.value }))} /></div>
+                <div>
+                  <label className="label">Situation familiale</label>
+                  <select className="input" value={form.situation_familiale} onChange={e => setForm((f: any) => ({ ...f, situation_familiale: e.target.value }))}>
+                    <option value="">— Sélectionner —</option>
+                    {SITUATIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div><label className="label">Nombre d'enfants</label><input type="number" min={0} className="input" value={form.nombre_enfants} onChange={e => setForm((f: any) => ({ ...f, nombre_enfants: Number(e.target.value) }))} /></div>
+                <div><label className="label">Quartier</label><input className="input" value={form.quartier} onChange={e => setForm((f: any) => ({ ...f, quartier: e.target.value }))} /></div>
+                <div>
+                  <label className="label">Langue parlée</label>
+                  <select className="input" value={form.langue} onChange={e => setForm((f: any) => ({ ...f, langue: e.target.value }))}>
+                    <option value="">— Choisir —</option>
+                    {langueOptions.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Suivi pastoral</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Origine</label>
+                  <select className="input" value={form.origine} onChange={e => setForm((f: any) => ({ ...f, origine: e.target.value }))}>
+                    <option value="">— Sélectionner —</option>
+                    {origineOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div><label className="label">Date premier contact</label><input type="date" className="input" value={form.date_premier_contact} onChange={e => setForm((f: any) => ({ ...f, date_premier_contact: e.target.value }))} /></div>
+                <div>
+                  <label className="label">Source contact</label>
+                  <select className="input" value={form.source_contact} onChange={e => setForm((f: any) => ({ ...f, source_contact: e.target.value }))}>
+                    <option value="">— Sélectionner —</option>
+                    {SOURCES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">De passage</label>
+                  <select className="input" value={form.de_passage} onChange={e => setForm((f: any) => ({ ...f, de_passage: e.target.value }))}>
+                    <option value="non">Non</option>
+                    <option value="oui">Oui</option>
+                  </select>
+                </div>
+                <div><label className="label">Suivi par</label><input className="input" value={form.suivi_par} onChange={e => setForm((f: any) => ({ ...f, suivi_par: e.target.value }))} placeholder="Nom du responsable" /></div>
+              </div>
+              <div className="mt-4"><label className="label">Notes</label><textarea className="input" rows={3} value={form.notes} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} /></div>
+            </div>
+            <div className="bg-violet-50 border border-violet-100 rounded-lg px-4 py-2 text-xs text-violet-700 flex items-center gap-2">
+              <Shield size={13} /> Toutes les modifications seront enregistrées dans l'Historique avec les anciennes et nouvelles valeurs.
+            </div>
+          </div>
+        )}
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+          <button onClick={() => setModal(false)} className="btn-secondary">Annuler</button>
+          <button onClick={doSave} disabled={saving} className="btn-primary flex items-center gap-2">
+            {saving ? <><Loader size={14} className="animate-spin" /> Enregistrement...</> : <><Save size={14} /> Enregistrer</>}
+          </button>
+        </div>
+      </Modal>
     </div>
   )
 }
