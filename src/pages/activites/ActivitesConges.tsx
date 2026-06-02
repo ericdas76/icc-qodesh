@@ -23,6 +23,8 @@ const STATUTS_CONGE = [
   { val: 'annule', label: 'Annulé', color: 'bg-red-100 text-red-700' },
 ]
 
+
+
 const emptyForm = {
   membre_id: '',
   prenom_nom: '',
@@ -30,7 +32,7 @@ const emptyForm = {
   categorie: '',
   departement: '',
   type_conge: '',
-  statut_conge: 'en_cours',
+  statut: 'en_cours',
   description: '',
   date_debut: '',
   date_fin: '',
@@ -95,7 +97,7 @@ export default function ActivitesConges() {
     setLoading(true)
     const { data } = await supabase
       .from('activites_conges')
-      .select('*')
+      .select('id, ordre, prenom_nom, sexe, categorie, departement, type_conge, statut, description, date_debut, date_fin, remarque_speciale, annee, annee_conge, mois, actif, auteur_id, created_at')
       .eq('actif', true)
       .eq('annee', filterAnnee)
       .order('ordre', { nullsFirst: false })
@@ -148,7 +150,7 @@ export default function ActivitesConges() {
   // ── Filtres ──
   const filtered = items.filter(a => {
     if (filterType && a.type_conge !== filterType) return false
-    if (filterStatut && a.statut_conge !== filterStatut) return false
+    if (filterStatut && a.statut !== filterStatut) return false
     if (search) {
       const q = search.toLowerCase()
       if (!(a.prenom_nom || '').toLowerCase().includes(q) &&
@@ -168,13 +170,13 @@ export default function ActivitesConges() {
   const openEdit = (a: any) => {
     setEditItem(a)
     setForm({
-      membre_id: a.membre_id || '',
+      membre_id: '',
       prenom_nom: a.prenom_nom || '',
       sexe: a.sexe || '',
       categorie: a.categorie || '',
       departement: a.departement || '',
       type_conge: a.type_conge || '',
-      statut_conge: a.statut_conge || 'en_cours',
+      statut: a.statut || 'en_cours',
       description: a.description || '',
       date_debut: a.date_debut || '',
       date_fin: a.date_fin || '',
@@ -205,7 +207,7 @@ export default function ActivitesConges() {
       categorie: form.categorie || null,
       departement: form.departement || null,
       type_conge: form.type_conge || null,
-      statut_conge: form.statut_conge || 'en_cours',
+      statut: form.statut || 'en_cours',
       description: form.description || null,
       date_debut: form.date_debut || null,
       date_fin: form.date_fin || null,
@@ -254,7 +256,7 @@ export default function ActivitesConges() {
     const cfg = STATUTS_CONGE.find(x => x.val === s)
     return cfg
       ? <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>{cfg.label}</span>
-      : <span className="text-slate-400">—</span>
+      : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">{s || '—'}</span>
   }
 
   // ── Export ──
@@ -335,13 +337,13 @@ export default function ActivitesConges() {
               </thead>
               <tbody className="divide-y">
                 {filtered.map(a => (
-                  <tr key={a.id} className={`hover:bg-slate-50 ${a.statut_conge === 'annule' ? 'opacity-60' : ''}`}>
+                  <tr key={a.id} className={`hover:bg-slate-50 ${a.statut === 'annule' ? 'opacity-60' : ''}`}>
                     <td className="px-3 py-1.5 text-slate-400 font-mono">{a.ordre || '—'}</td>
                     <td className="px-3 py-1.5 font-medium text-slate-800">{a.prenom_nom}</td>
                     <td className="px-3 py-1.5 text-slate-500">{a.categorie || '—'}</td>
                     <td className="px-3 py-1.5 text-slate-500 max-w-24 truncate">{a.departement || '—'}</td>
                     <td className="px-3 py-1.5">{typeBadge(a.type_conge)}</td>
-                    <td className="px-3 py-1.5">{statutBadge(a.statut_conge)}</td>
+                    <td className="px-3 py-1.5">{statutBadge(a.statut)}</td>
                     <td className="px-3 py-1.5 text-slate-600">{fmtDate(a.date_debut)}</td>
                     <td className="px-3 py-1.5 text-slate-600">{fmtDate(a.date_fin)}</td>
                     <td className="px-3 py-1.5 font-semibold text-slate-700">{calcDuree(a.date_debut, a.date_fin)}</td>
@@ -456,8 +458,8 @@ export default function ActivitesConges() {
             </div>
             <div>
               <label className="label">Statut congé</label>
-              <select className="input" value={form.statut_conge}
-                onChange={e => setForm(p => ({ ...p, statut_conge: e.target.value }))}>
+              <select className="input" value={form.statut}
+                onChange={e => setForm(p => ({ ...p, statut: e.target.value }))}>
                 {STATUTS_CONGE.map(s => <option key={s.val} value={s.val}>{s.label}</option>)}
               </select>
             </div>
@@ -522,7 +524,7 @@ export default function ActivitesConges() {
               <span className="font-mono font-bold text-violet-700 bg-violet-50 px-3 py-1 rounded-lg">
                 {viewItem.ordre || '—'}
               </span>
-              {statutBadge(viewItem.statut_conge)}
+              {statutBadge(viewItem.statut)}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><span className="label">Prénom & Nom</span><p className="font-semibold">{viewItem.prenom_nom}</p></div>

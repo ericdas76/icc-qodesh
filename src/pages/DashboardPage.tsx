@@ -81,7 +81,7 @@ export default function DashboardPage() {
       supabase.from('inscriptions_formation').select('*', { count: 'exact', head: true }).in('statut', ['inscrit', 'en_cours']),
       supabase.from('taches_suivi').select('*', { count: 'exact', head: true }).eq('statut', 'en_attente').lt('echeance', today),
       supabase.from('activites_conges').select('*', { count: 'exact', head: true })
-        .eq('statut_conge', 'en_cours')
+        .eq('statut', 'en_cours')
         .eq('annee', annee),
       supabase.from('personnes').select('id, nom, prenom, statut, created_at, nationalite').eq('actif', true).order('created_at', { ascending: false }).limit(5),
       supabase.from('taches_suivi').select('*, personnes(nom, prenom)').eq('statut', 'en_attente').lt('echeance', today).order('echeance').limit(5),
@@ -109,8 +109,8 @@ export default function DashboardPage() {
     const annee = new Date().getFullYear()
     const { data } = await supabase
       .from('activites_conges')
-      .select('id, prenom_nom, departement, date_debut, date_fin, duree')
-      .eq('statut_conge', 'en_cours')
+      .select('id, prenom_nom, departement, date_debut, date_fin')
+      .eq('statut', 'en_cours')
       .eq('annee', annee)
       .order('date_debut', { ascending: true })
 
@@ -121,7 +121,7 @@ export default function DashboardPage() {
         departement: c.departement || '—',
         date_debut: c.date_debut || '',
         date_fin: c.date_fin || '',
-        duree: c.duree || 0
+        duree: 0 // calculé dynamiquement via dureeRestante()
       }))
     )
     setLoadingConges(false)
