@@ -49,6 +49,10 @@ export interface Personne {
   quartier: string | null
   statut: string
   origine: string | null
+  telephone_whatsapp: string | null
+  langue: string | null
+  suivi_par: string | null
+  de_passage: boolean
   date_premier_contact: string | null
   source_contact: string | null
   notes: string | null

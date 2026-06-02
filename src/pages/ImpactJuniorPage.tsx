@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Plus, Edit2, Loader, Download, Eye, Users, Baby } from 'lucide-react'
 import Modal from '../components/Modal'
 import EmptyState from '../components/EmptyState'
+import Pagination from '../components/Pagination'
 import ConfirmDialog from '../components/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -310,6 +311,13 @@ export default function ImpactJuniorPage() {
     toast.success('Export Excel généré')
   }
 
+  // ─── PAGINATION ────────────────────────────────────────────────────────────
+  const PAGE_SIZE = 25
+  const [pageEnfants, setPageEnfants] = useState(1)
+  const [pageCultes, setPageCultes] = useState(1)
+  const paginatedEnfants = enfants.slice((pageEnfants - 1) * PAGE_SIZE, pageEnfants * PAGE_SIZE)
+  const paginatedCultes = cultes.slice((pageCultes - 1) * PAGE_SIZE, pageCultes * PAGE_SIZE)
+
   // ─── STATS ─────────────────────────────────────────────────────────────────
   const totalEnfants = enfants.length
   const totalCultes = cultes.length
@@ -420,7 +428,7 @@ export default function ImpactJuniorPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {enfants.map(e => (
+                  {paginatedEnfants.map(e => (
                     <tr key={e.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">
                         {e.prenom} {e.nom}
@@ -469,6 +477,7 @@ export default function ImpactJuniorPage() {
                   ))}
                 </tbody>
               </table>
+              <Pagination total={enfants.length} page={pageEnfants} pageSize={PAGE_SIZE} onPage={setPageEnfants} />
             </div>
           )}
         </div>
@@ -519,7 +528,7 @@ export default function ImpactJuniorPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {cultes.map(c => {
+                  {paginatedCultes.map(c => {
                     const total = (parseInt(c.garcons) || 0) + (parseInt(c.filles) || 0)
                     const duree = c.duree_minutes || calcDuree(c.heure_debut, c.heure_fin)
                     return (
@@ -587,6 +596,7 @@ export default function ImpactJuniorPage() {
                   })}
                 </tbody>
               </table>
+              <Pagination total={cultes.length} page={pageCultes} pageSize={PAGE_SIZE} onPage={setPageCultes} />
             </div>
           )}
         </div>

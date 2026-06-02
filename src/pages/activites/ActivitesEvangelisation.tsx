@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { Plus, Edit2, Loader, Download, Megaphone } from 'lucide-react'
 import Modal from '../../components/Modal'
 import EmptyState from '../../components/EmptyState'
+import Pagination from '../../components/Pagination'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -49,8 +50,13 @@ export default function ActivitesEvangelisation() {
   const [saving, setSaving] = useState(false)
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 25
 
   useEffect(() => { fetchData() }, [filterFrom, filterTo])
+
+  const handleFilterFrom = (v: string) => { setFilterFrom(v); setPage(1) }
+  const handleFilterTo = (v: string) => { setFilterTo(v); setPage(1) }
 
   // Auto-calcul durée
   useEffect(() => {
@@ -129,6 +135,8 @@ export default function ActivitesEvangelisation() {
     fetchData()
   }
 
+  const paginated = activites.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(p => ({ ...p, [field]: e.target.value }))
 
@@ -144,9 +152,9 @@ export default function ActivitesEvangelisation() {
           <p className="text-sm text-slate-500">{activites.length} sortie{activites.length > 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <input type="date" className="input w-auto text-xs" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+          <input type="date" className="input w-auto text-xs" value={filterFrom} onChange={e => handleFilterFrom(e.target.value)} />
           <span className="text-slate-400 text-xs">au</span>
-          <input type="date" className="input w-auto text-xs" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+          <input type="date" className="input w-auto text-xs" value={filterTo} onChange={e => handleFilterTo(e.target.value)} />
           <button onClick={() => exportExcel('Évangélisation', COLS_EXPORT, activites, 'Evangelisation')} className="btn-secondary flex items-center gap-1 text-xs">
             <Download size={14} /> Excel
           </button>
@@ -192,7 +200,7 @@ export default function ActivitesEvangelisation() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {activites.map(a => (
+                {paginated.map(a => (
                   <tr key={a.id} className="hover:bg-slate-50">
                     <td className="px-3 py-2 text-slate-400">{a.ordre || '—'}</td>
                     <td className="px-3 py-2 font-medium whitespace-nowrap">{format(new Date(a.date_sortie), 'd MMM yyyy', { locale: fr })}</td>
@@ -218,6 +226,7 @@ export default function ActivitesEvangelisation() {
               </tbody>
             </table>
           </div>
+          <Pagination total={activites.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
         </div>
       )}
 

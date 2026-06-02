@@ -5,6 +5,7 @@ import { Plus, Edit, Trash2, Loader, Eye, FileText, FileSpreadsheet, Church } fr
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
+import Pagination from '../../components/Pagination'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -54,8 +55,13 @@ export default function ActivitesCelebration() {
   const [saving, setSaving] = useState(false)
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 25
 
   useEffect(() => { fetchData() }, [filterFrom, filterTo])
+
+  const handleFilterFrom = (v: string) => { setFilterFrom(v); setPage(1) }
+  const handleFilterTo = (v: string) => { setFilterTo(v); setPage(1) }
 
   const fetchData = async () => {
     setLoading(true)
@@ -147,6 +153,8 @@ export default function ActivitesCelebration() {
 
   const total = (form.hommes || 0) + (form.femmes || 0) + (form.enfants || 0)
 
+  const paginated = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   const doExportPDF = () => exportPDF('Cultes — Célébration', COLS_EXPORT, items,
     `${items.length} culte(s)`)
   const doExportExcel = () => exportExcel('Celebration', COLS_EXPORT, items, 'Célébration')
@@ -160,10 +168,10 @@ export default function ActivitesCelebration() {
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           <input type="date" className="input w-auto text-sm" value={filterFrom}
-            onChange={e => setFilterFrom(e.target.value)} />
+            onChange={e => handleFilterFrom(e.target.value)} />
           <span className="text-slate-400 text-sm">→</span>
           <input type="date" className="input w-auto text-sm" value={filterTo}
-            onChange={e => setFilterTo(e.target.value)} />
+            onChange={e => handleFilterTo(e.target.value)} />
           <button onClick={doExportPDF} className="btn-secondary text-xs" title="Export PDF">
             <FileText size={14} />
           </button>
@@ -186,7 +194,7 @@ export default function ActivitesCelebration() {
         <EmptyState icon={Church} title="Aucun culte enregistré" />
       ) : (
         <div className="space-y-3">
-          {items.map(a => (
+          {paginated.map(a => (
             <div key={a.id} className="card p-4">
               <div className="flex items-start justify-between">
                 <div>
@@ -235,6 +243,7 @@ export default function ActivitesCelebration() {
               {a.notes && <p className="text-xs text-slate-400 mt-2">{a.notes}</p>}
             </div>
           ))}
+          <Pagination total={items.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
         </div>
       )}
 

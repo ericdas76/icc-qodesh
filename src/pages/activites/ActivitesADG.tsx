@@ -5,6 +5,7 @@ import { Plus, Edit, Trash2, Loader, Filter } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
+import Pagination from '../../components/Pagination'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -27,8 +28,13 @@ export default function ActivitesADG() {
   const [saving, setSaving] = useState(false)
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 25
 
   useEffect(() => { fetch() }, [filterFrom, filterTo])
+
+  const handleFilterFrom = (v: string) => { setFilterFrom(v); setPage(1) }
+  const handleFilterTo = (v: string) => { setFilterTo(v); setPage(1) }
 
   const fetch = async () => {
     setLoading(true)
@@ -90,6 +96,7 @@ export default function ActivitesADG() {
     setForm(p => ({ ...p, [field]: field === 'hommes' || field === 'femmes' || field === 'enfants' ? parseInt(e.target.value) || 0 : e.target.value }))
 
   const total = (f: typeof form) => (f.hommes || 0) + (f.femmes || 0) + (f.enfants || 0)
+  const paginated = activites.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div>
@@ -99,8 +106,8 @@ export default function ActivitesADG() {
           <p className="text-sm text-slate-500">{activites.length} séance{activites.length > 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
-          <input type="date" className="input w-auto text-xs" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} placeholder="Du" />
-          <input type="date" className="input w-auto text-xs" value={filterTo} onChange={e => setFilterTo(e.target.value)} placeholder="Au" />
+          <input type="date" className="input w-auto text-xs" value={filterFrom} onChange={e => handleFilterFrom(e.target.value)} placeholder="Du" />
+          <input type="date" className="input w-auto text-xs" value={filterTo} onChange={e => handleFilterTo(e.target.value)} placeholder="Au" />
           {hasPermission('activites', 'creer') && (
             <button onClick={openCreate} className="btn-primary"><Plus size={16} /> Nouveau</button>
           )}
@@ -123,7 +130,7 @@ export default function ActivitesADG() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {activites.map(a => (
+                {paginated.map(a => (
                   <tr key={a.id} className="hover:bg-slate-50">
                     <td className="px-3 py-2 text-slate-400">{a.ordre || '—'}</td>
                     <td className="px-3 py-2 font-medium">{format(new Date(a.date_activite), 'd MMM yyyy', { locale: fr })}</td>
@@ -152,6 +159,7 @@ export default function ActivitesADG() {
               </tbody>
             </table>
           </div>
+          <Pagination total={activites.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
         </div>
       )}
 

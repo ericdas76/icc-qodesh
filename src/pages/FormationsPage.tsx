@@ -436,8 +436,9 @@ export default function FormationsPage() {
           ) : promotions.length === 0 ? (
             <EmptyState message="Aucune promotion" />
           ) : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {promotions.map(p => {
+              {paginatedPromos.map(p => {
                 const nbClasses = formations.filter(f => f.promotion_id === p.id).length
                 return (
                   <div key={p.id} className="card hover:shadow-md transition-shadow">
@@ -469,6 +470,8 @@ export default function FormationsPage() {
                 )
               })}
             </div>
+            <Pagination total={promotions.length} page={pagePromos} pageSize={PAGE_SIZE} onPage={setPagePromos} />
+            </>
           )}
         </div>
       )}
@@ -504,7 +507,7 @@ export default function FormationsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {formations.map(f => {
+                    {paginatedClasses.map(f => {
                       const nbApp = (f.inscriptions_formation || []).filter((i: any) => i.statut !== 'abandonne').length
                       return (
                         <tr key={f.id} className="hover:bg-gray-50 transition-colors">
@@ -548,6 +551,7 @@ export default function FormationsPage() {
                   </tbody>
                 </table>
               </div>
+              <Pagination total={formations.length} page={pageClasses} pageSize={PAGE_SIZE} onPage={setPageClasses} />
             </div>
           )}
         </div>

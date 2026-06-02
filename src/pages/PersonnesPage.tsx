@@ -3,6 +3,7 @@ import { supabase, Personne } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
+import Pagination from '../components/Pagination'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
 import toast from 'react-hot-toast'
@@ -12,6 +13,7 @@ import { logEvent } from '../lib/journal'
 import { exportExcel, exportPDF } from '../lib/export'
 
 // ─── Constantes statiques (hors composant) ───────────────────────────────────
+const PAGE_SIZE = 25
 const SEXES = [{ v: '', l: 'Tous' }, { v: 'M', l: 'Homme' }, { v: 'F', l: 'Femme' }]
 const SOURCES = ['culte', 'ami', 'internet', 'autre']
 const SITUATIONS = ['celibataire', 'marie', 'divorce', 'veuf']
@@ -225,6 +227,7 @@ export default function PersonnesPage() {
   const [search, setSearch] = useState('')
   const [filterOrigine, setFilterOrigine] = useState('')
   const [filterSexe, setFilterSexe] = useState('')
+  const [page, setPage] = useState(1)
 
   // Modals
   const [addModal, setAddModal] = useState(false)
@@ -264,6 +267,10 @@ export default function PersonnesPage() {
     setOrigineOptions((data || []).map(d => d.valeur))
   }
 
+  const handleSearch = (v: string) => { setSearch(v); setPage(1) }
+  const handleFilterOrigine = (v: string) => { setFilterOrigine(v); setPage(1) }
+  const handleFilterSexe = (v: string) => { setFilterSexe(v); setPage(1) }
+
   const filtered = personnes.filter(p => {
     const s = search.toLowerCase()
     const matchSearch = !search || p.nom.toLowerCase().includes(s) || p.prenom.toLowerCase().includes(s) || (p.telephone || '').includes(s)
@@ -271,6 +278,7 @@ export default function PersonnesPage() {
     const matchSexe = !filterSexe || p.sexe === filterSexe
     return matchSearch && matchOrigine && matchSexe
   })
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   // --- Ajouter ---
   const openAdd = () => { setForm({ ...emptyForm }); setAddModal(true) }
@@ -386,16 +394,16 @@ export default function PersonnesPage() {
               className="input pl-9"
               placeholder="Nom, prénom, téléphone..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => handleSearch(e.target.value)}
             />
           </div>
-          <select className="input" value={filterOrigine} onChange={e => setFilterOrigine(e.target.value)}>
+          <select className="input" value={filterOrigine} onChange={e => handleFilterOrigine(e.target.value)}>
             <option value="">Toutes les origines</option>
             {origineOptions.map(o => (
               <option key={o} value={o}>{o}</option>
             ))}
           </select>
-          <select className="input" value={filterSexe} onChange={e => setFilterSexe(e.target.value)}>
+          <select className="input" value={filterSexe} onChange={e => handleFilterSexe(e.target.value)}>
             {SEXES.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
           </select>
         </div>
@@ -431,7 +439,7 @@ export default function PersonnesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map(p => (
+                {paginated.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-900">{p.prenom} {p.nom}</td>
                     <td className="px-4 py-3 text-gray-600">{p.sexe === 'M' ? 'Homme' : p.sexe === 'F' ? 'Femme' : '—'}</td>
@@ -462,6 +470,7 @@ export default function PersonnesPage() {
                 ))}
               </tbody>
             </table>
+            <Pagination total={filtered.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
           </div>
         )}
       </div>

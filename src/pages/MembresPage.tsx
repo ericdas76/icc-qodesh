@@ -5,13 +5,15 @@ import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users } from 'luci
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
+import Pagination from '../components/Pagination'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { logEvent } from '../lib/journal'
 import { exportExcel, exportPDF } from '../lib/export'
 
-// ─── Constantes statiques (hors composant) ───────────────────────────────────
+const PAGE_SIZE = 25
+
 const COLS_EXPORT = [
   { header: 'N° Membre', key: 'numero_membre' },
   { header: 'Nom', key: 'personnes.nom' },
@@ -28,13 +30,15 @@ const emptyForm = {
   numero_membre: '',
   date_adhesion: format(new Date(), 'yyyy-MM-dd'),
   statut: 'nouveau',
-  categorie: 'Nouveau',
+  categorie: '',
   departement: '',
   date_liberation: '',
   motif_liberation: '',
+  // lecture seule — chargé depuis la personne sélectionnée
+  origine_affichee: '',
 }
 
-// ─── Formulaire extrait HORS du composant parent (fix bug curseur) ─────────────
+// ─── Formulaire extrait HORS du composant parent ──────────────────────────────
 interface MembreFormProps {
   isEdit?: boolean
   form: typeof emptyForm
@@ -43,19 +47,16 @@ interface MembreFormProps {
   editItem: any | null
   categorieOptions: string[]
   departementOptions: string[]
+  onPersonneChange: (id: string) => void
 }
 
 function MembreForm({
-  isEdit,
-  form,
-  setForm,
-  personnesList,
-  editItem,
-  categorieOptions,
-  departementOptions,
+  isEdit, form, setForm, personnesList, editItem,
+  categorieOptions, departementOptions, onPersonneChange,
 }: MembreFormProps) {
   return (
     <div className="space-y-4">
+      {/* Personne */}
       <div>
         <label className="label">Personne *</label>
         {isEdit ? (
@@ -67,79 +68,65 @@ function MembreForm({
           <select
             className="input"
             value={form.personne_id}
-            onChange={e => setForm(f => ({ ...f, personne_id: e.target.value }))}
+            onChange={e => onPersonneChange(e.target.value)}
           >
             <option value="">-- Sélectionner une personne --</option>
             {personnesList.map((p: any) => (
-              <option key={p.id} value={p.id}>
-                {p.prenom} {p.nom}{p.telephone ? ` — ${p.telephone}` : ''}
-              </option>
+              <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
             ))}
           </select>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
+        {/* N° membre auto-généré */}
         <div>
           <label className="label">N° Membre</label>
-          <input
-            className="input bg-gray-50 text-gray-500"
-            value={form.numero_membre}
-            readOnly
-            placeholder="Auto-généré"
-          />
+          <input className="input bg-gray-50 text-gray-500 cursor-not-allowed" value={form.numero_membre} readOnly placeholder="Auto-généré" />
         </div>
+        {/* Date adhésion */}
         <div>
           <label className="label">Date d'adhésion</label>
-          <input
-            type="date"
-            className="input"
-            value={form.date_adhesion}
-            onChange={e => setForm(f => ({ ...f, date_adhesion: e.target.value }))}
-          />
+          <input type="date" className="input" value={form.date_adhesion}
+            onChange={e => setForm(f => ({ ...f, date_adhesion: e.target.value }))} />
         </div>
+        {/* Catégorie obligatoire */}
         <div>
           <label className="label">Catégorie *</label>
-          <select
-            className="input"
-            value={form.categorie}
-            onChange={e => setForm(f => ({ ...f, categorie: e.target.value }))}
-          >
+          <select className="input" value={form.categorie}
+            onChange={e => setForm(f => ({ ...f, categorie: e.target.value }))}>
             <option value="">-- Sélectionner --</option>
-            {categorieOptions.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
+            {categorieOptions.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
+        {/* Origine — lecture seule */}
+        <div>
+          <label className="label">Origine</label>
+          <input
+            className="input bg-gray-50 text-gray-500 cursor-not-allowed"
+            value={isEdit ? (editItem?.personnes?.origine || '—') : (form.origine_affichee || '—')}
+            readOnly
+          />
+        </div>
+        {/* Département optionnel */}
         <div>
           <label className="label">Département</label>
-          <select
-            className="input"
-            value={form.departement}
-            onChange={e => setForm(f => ({ ...f, departement: e.target.value }))}
-          >
+          <select className="input" value={form.departement}
+            onChange={e => setForm(f => ({ ...f, departement: e.target.value }))}>
             <option value="">-- Sélectionner --</option>
-            {departementOptions.map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
+            {departementOptions.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
+        {/* Date libération */}
         <div>
           <label className="label">Date de libération</label>
-          <input
-            type="date"
-            className="input"
-            value={form.date_liberation}
-            onChange={e => setForm(f => ({ ...f, date_liberation: e.target.value }))}
-          />
+          <input type="date" className="input" value={form.date_liberation}
+            onChange={e => setForm(f => ({ ...f, date_liberation: e.target.value }))} />
         </div>
         <div className="col-span-2">
           <label className="label">Motif de libération</label>
-          <input
-            className="input"
-            value={form.motif_liberation}
-            onChange={e => setForm(f => ({ ...f, motif_liberation: e.target.value }))}
-          />
+          <input className="input" value={form.motif_liberation}
+            onChange={e => setForm(f => ({ ...f, motif_liberation: e.target.value }))} />
         </div>
       </div>
     </div>
@@ -148,7 +135,7 @@ function MembreForm({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function MembresPage() {
-  const { hasPermission, user } = useAuth()
+  const { hasPermission } = useAuth()
   const [membres, setMembres] = useState<any[]>([])
   const [personnesList, setPersonnesList] = useState<any[]>([])
   const [categorieOptions, setCategorieOptions] = useState<string[]>([])
@@ -156,6 +143,7 @@ export default function MembresPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCategorie, setFilterCategorie] = useState('')
+  const [page, setPage] = useState(1)
 
   // Modals
   const [addModal, setAddModal] = useState(false)
@@ -164,6 +152,8 @@ export default function MembresPage() {
   const [viewItem, setViewItem] = useState<any | null>(null)
   const [editItem, setEditItem] = useState<any | null>(null)
   const [desactiverDialog, setDesactiverDialog] = useState<any | null>(null)
+  const [confirmAddDialog, setConfirmAddDialog] = useState(false)
+  const [confirmEditDialog, setConfirmEditDialog] = useState(false)
 
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
@@ -173,19 +163,14 @@ export default function MembresPage() {
   const canDelete = hasPermission('membres', 'supprimer')
   const canExport = hasPermission('membres', 'exporter')
 
-  useEffect(() => {
-    fetchMembres()
-    fetchPersonnes()
-    fetchListes()
-  }, [])
+  useEffect(() => { fetchMembres(); fetchPersonnes(); fetchListes() }, [])
 
   const fetchListes = async () => {
     const { data } = await supabase
       .from('listes_parametrables')
       .select('categorie, valeur, ordre')
       .in('categorie', ['statut_membre', 'departement'])
-      .eq('actif', true)
-      .order('ordre')
+      .eq('actif', true).order('ordre')
     if (data) {
       setCategorieOptions(data.filter(d => d.categorie === 'statut_membre').map(d => d.valeur))
       setDepartementOptions(data.filter(d => d.categorie === 'departement').map(d => d.valeur))
@@ -204,23 +189,31 @@ export default function MembresPage() {
   }
 
   const fetchPersonnes = async () => {
+    // Personnes du module Intégration = personnes actives sans fiche membre active
     const { data: membresExist } = await supabase.from('membres').select('personne_id').eq('actif', true)
     const existingIds = (membresExist || []).map((m: any) => m.personne_id)
-    const { data } = await supabase.from('personnes').select('id, nom, prenom, telephone').eq('actif', true).order('nom')
+    const { data } = await supabase.from('personnes')
+      .select('id, nom, prenom, origine').eq('actif', true).order('nom')
     setPersonnesList((data || []).filter((p: any) => !existingIds.includes(p.id)))
   }
 
-  // ─── Auto-numérotation ICC-YYYY-NNN ─────────────────────────────────────────
+  // Quand on sélectionne une personne → charger son origine
+  const handlePersonneChange = (id: string) => {
+    const p = personnesList.find((p: any) => p.id === id)
+    setForm(f => ({ ...f, personne_id: id, origine_affichee: p?.origine || '' }))
+  }
+
+  // Auto-numérotation ICC-YYYY-NNN
   const genererNumeroMembre = async (): Promise<string> => {
     const annee = new Date().getFullYear()
     const { count } = await supabase
-      .from('membres')
-      .select('*', { count: 'exact', head: true })
+      .from('membres').select('*', { count: 'exact', head: true })
       .like('numero_membre', `ICC-${annee}-%`)
     const seq = String((count || 0) + 1).padStart(3, '0')
     return `ICC-${annee}-${seq}`
   }
 
+  // Filtrage + pagination
   const filtered = membres.filter(m => {
     const s = search.toLowerCase()
     const p = m.personnes || {}
@@ -232,6 +225,11 @@ export default function MembresPage() {
     const matchCategorie = !filterCategorie || m.categorie === filterCategorie
     return matchSearch && matchCategorie
   })
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  // Reset page si filtre change
+  const handleSearch = (v: string) => { setSearch(v); setPage(1) }
+  const handleFilterCat = (v: string) => { setFilterCategorie(v); setPage(1) }
 
   // --- Ajouter ---
   const openAdd = async () => {
@@ -243,7 +241,12 @@ export default function MembresPage() {
   const doAdd = async () => {
     if (!form.personne_id) { toast.error('Sélectionner une personne'); return }
     if (!form.categorie) { toast.error('Catégorie obligatoire'); return }
+    setConfirmAddDialog(true)
+  }
+
+  const doAddConfirmed = async () => {
     setSaving(true)
+    setConfirmAddDialog(false)
     const { data, error } = await supabase.from('membres').insert({
       personne_id: form.personne_id,
       numero_membre: form.numero_membre || null,
@@ -271,10 +274,11 @@ export default function MembresPage() {
       numero_membre: m.numero_membre || '',
       date_adhesion: m.date_adhesion || '',
       statut: m.statut || 'nouveau',
-      categorie: m.categorie || 'Nouveau',
+      categorie: m.categorie || '',
       departement: m.departement || '',
       date_liberation: m.date_liberation || '',
       motif_liberation: m.motif_liberation || '',
+      origine_affichee: m.personnes?.origine || '',
     })
     setEditModal(true)
   }
@@ -282,7 +286,12 @@ export default function MembresPage() {
   const doEdit = async () => {
     if (!editItem) return
     if (!form.categorie) { toast.error('Catégorie obligatoire'); return }
+    setConfirmEditDialog(true)
+  }
+
+  const doEditConfirmed = async () => {
     setSaving(true)
+    setConfirmEditDialog(false)
     const { error } = await supabase.from('membres').update({
       numero_membre: form.numero_membre || null,
       date_adhesion: form.date_adhesion || null,
@@ -300,10 +309,8 @@ export default function MembresPage() {
     fetchMembres()
   }
 
-  // --- Visualiser ---
   const openView = (m: any) => { setViewItem(m); setViewModal(true) }
 
-  // --- Désactiver ---
   const doDesactiver = async () => {
     if (!desactiverDialog) return
     const { error } = await supabase.from('membres').update({ actif: false }).eq('id', desactiverDialog.id)
@@ -311,13 +318,14 @@ export default function MembresPage() {
     await logEvent('membres', 'supprimer', desactiverDialog.id, `Désactivation membre`)
     toast.success('Membre désactivé')
     setDesactiverDialog(null)
-    fetchMembres()
-    fetchPersonnes()
+    fetchMembres(); fetchPersonnes()
   }
 
-  // --- Export ---
   const doExportExcel = () => exportExcel('Membres', COLS_EXPORT, filtered, 'Membres')
   const doExportPDF = () => exportPDF('Liste des Membres', COLS_EXPORT, filtered, `${filtered.length} membre(s)`)
+
+  // Personne sélectionnée pour le résumé confirm
+  const selectedPersonne = personnesList.find(p => p.id === form.personne_id)
 
   return (
     <div className="space-y-6">
@@ -330,18 +338,12 @@ export default function MembresPage() {
         <div className="flex gap-2 flex-wrap">
           {canExport && (
             <>
-              <button onClick={doExportPDF} className="btn-secondary flex items-center gap-1">
-                <FileText size={16} /> PDF
-              </button>
-              <button onClick={doExportExcel} className="btn-secondary flex items-center gap-1">
-                <Download size={16} /> Excel
-              </button>
+              <button onClick={doExportPDF} className="btn-secondary flex items-center gap-1"><FileText size={16} /> PDF</button>
+              <button onClick={doExportExcel} className="btn-secondary flex items-center gap-1"><Download size={16} /> Excel</button>
             </>
           )}
           {canCreate && (
-            <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-              <Plus size={18} /> Ajouter
-            </button>
+            <button onClick={openAdd} className="btn-primary flex items-center gap-2"><Plus size={18} /> Ajouter</button>
           )}
         </div>
       </div>
@@ -351,18 +353,12 @@ export default function MembresPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              className="input pl-9"
-              placeholder="Nom, prénom, n° membre..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+            <input className="input pl-9" placeholder="Nom, prénom, n° membre..."
+              value={search} onChange={e => handleSearch(e.target.value)} />
           </div>
-          <select className="input" value={filterCategorie} onChange={e => setFilterCategorie(e.target.value)}>
+          <select className="input" value={filterCategorie} onChange={e => handleFilterCat(e.target.value)}>
             <option value="">Toutes les catégories</option>
-            {categorieOptions.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
+            {categorieOptions.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>
@@ -372,80 +368,61 @@ export default function MembresPage() {
         {loading ? (
           <div className="p-8 text-center text-gray-400">Chargement...</div>
         ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            title="Aucun membre trouvé"
+          <EmptyState icon={Users} title="Aucun membre trouvé"
             description="Aucun membre ne correspond à votre recherche."
             action={canCreate ? (
-              <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-                <Plus size={16} /> Ajouter un membre
-              </button>
-            ) : undefined}
-          />
+              <button onClick={openAdd} className="btn-primary flex items-center gap-2"><Plus size={16} /> Ajouter un membre</button>
+            ) : undefined} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">N° Membre</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Nom complet</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Catégorie</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Origine</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Département</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Adhésion</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map(m => (
-                  <tr key={m.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs text-blue-700">{m.numero_membre || '—'}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {m.personnes?.prenom} {m.personnes?.nom}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{m.personnes?.telephone || '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{m.categorie || '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{m.personnes?.origine || '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{m.departement || '—'}</td>
-                    <td className="px-4 py-3 text-gray-600 text-xs">
-                      {m.date_adhesion ? format(new Date(m.date_adhesion), 'dd MMM yyyy', { locale: fr }) : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openView(m)} className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="Visualiser">
-                          <Eye size={15} />
-                        </button>
-                        {canEdit && (
-                          <button onClick={() => openEdit(m)} className="p-1.5 rounded hover:bg-amber-50 text-amber-600" title="Modifier">
-                            <Edit2 size={15} />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button onClick={() => setDesactiverDialog(m)} className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Désactiver">
-                            <UserX size={15} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">N° Membre</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Nom complet</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Catégorie</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Origine</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Département</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Adhésion</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {paginated.map(m => (
+                    <tr key={m.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 font-mono text-xs text-blue-700">{m.numero_membre || '—'}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{m.personnes?.prenom} {m.personnes?.nom}</td>
+                      <td className="px-4 py-3 text-gray-600">{m.personnes?.telephone || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{m.categorie || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{m.personnes?.origine || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{m.departement || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">
+                        {m.date_adhesion ? format(new Date(m.date_adhesion), 'dd MMM yyyy', { locale: fr }) : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openView(m)} className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="Visualiser"><Eye size={15} /></button>
+                          {canEdit && <button onClick={() => openEdit(m)} className="p-1.5 rounded hover:bg-amber-50 text-amber-600" title="Modifier"><Edit2 size={15} /></button>}
+                          {canDelete && <button onClick={() => setDesactiverDialog(m)} className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Désactiver"><UserX size={15} /></button>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination total={filtered.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
+          </>
         )}
       </div>
 
       {/* Modal Ajouter */}
       <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Nouveau membre" size="lg">
-        <MembreForm
-          form={form}
-          setForm={setForm}
-          personnesList={personnesList}
-          editItem={null}
-          categorieOptions={categorieOptions}
-          departementOptions={departementOptions}
-        />
+        <MembreForm form={form} setForm={setForm} personnesList={personnesList} editItem={null}
+          categorieOptions={categorieOptions} departementOptions={departementOptions}
+          onPersonneChange={handlePersonneChange} />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setAddModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={doAdd} disabled={saving} className="btn-primary">
@@ -455,21 +432,11 @@ export default function MembresPage() {
       </Modal>
 
       {/* Modal Modifier */}
-      <Modal
-        isOpen={editModal}
-        onClose={() => setEditModal(false)}
-        title={`Modifier — ${editItem?.personnes?.prenom} ${editItem?.personnes?.nom}`}
-        size="lg"
-      >
-        <MembreForm
-          isEdit
-          form={form}
-          setForm={setForm}
-          personnesList={personnesList}
-          editItem={editItem}
-          categorieOptions={categorieOptions}
-          departementOptions={departementOptions}
-        />
+      <Modal isOpen={editModal} onClose={() => setEditModal(false)}
+        title={`Modifier — ${editItem?.personnes?.prenom} ${editItem?.personnes?.nom}`} size="lg">
+        <MembreForm isEdit form={form} setForm={setForm} personnesList={personnesList} editItem={editItem}
+          categorieOptions={categorieOptions} departementOptions={departementOptions}
+          onPersonneChange={handlePersonneChange} />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setEditModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={doEdit} disabled={saving} className="btn-primary">
@@ -479,12 +446,8 @@ export default function MembresPage() {
       </Modal>
 
       {/* Modal Visualiser */}
-      <Modal
-        isOpen={viewModal}
-        onClose={() => setViewModal(false)}
-        title={`Fiche membre — ${viewItem?.personnes?.prenom} ${viewItem?.personnes?.nom}`}
-        size="md"
-      >
+      <Modal isOpen={viewModal} onClose={() => setViewModal(false)}
+        title={`Fiche membre — ${viewItem?.personnes?.prenom} ${viewItem?.personnes?.nom}`} size="md">
         {viewItem && (
           <div className="space-y-3 text-sm">
             <div className="grid grid-cols-2 gap-3">
@@ -519,6 +482,26 @@ export default function MembresPage() {
           <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
         </div>
       </Modal>
+
+      {/* Confirm Ajouter */}
+      <ConfirmDialog
+        open={confirmAddDialog}
+        onClose={() => setConfirmAddDialog(false)}
+        onConfirm={doAddConfirmed}
+        title="Confirmer l'ajout"
+        message={`Créer le membre ${form.numero_membre} pour ${selectedPersonne?.prenom} ${selectedPersonne?.nom} (catégorie : ${form.categorie}) ? Cette personne quittera la liste Intégration.`}
+        confirmLabel="Confirmer"
+      />
+
+      {/* Confirm Modifier */}
+      <ConfirmDialog
+        open={confirmEditDialog}
+        onClose={() => setConfirmEditDialog(false)}
+        onConfirm={doEditConfirmed}
+        title="Confirmer la modification"
+        message={`Mettre à jour le membre ${editItem?.numero_membre} — ${editItem?.personnes?.prenom} ${editItem?.personnes?.nom} ?`}
+        confirmLabel="Confirmer"
+      />
 
       {/* Dialog désactivation */}
       <ConfirmDialog
