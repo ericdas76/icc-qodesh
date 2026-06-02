@@ -1,16 +1,21 @@
 #!/bin/bash
 set -e
-cd /home/user/webapp
 
-# Charger les variables .env
+# Se positionner dans le répertoire du script (compatible local + Cloudflare)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Charger les variables .env si présent (local uniquement)
 if [ -f .env ]; then
   export $(grep -v '^#' .env | xargs)
 fi
 
+# Les variables sont injectées par Cloudflare Pages directement dans l'environnement
 SUPABASE_URL="${VITE_SUPABASE_URL:-}"
 SUPABASE_KEY="${VITE_SUPABASE_ANON_KEY:-}"
 
-echo "SUPABASE_URL: $SUPABASE_URL"
+echo "SUPABASE_URL défini: $([ -n "$SUPABASE_URL" ] && echo 'OUI' || echo 'NON — variable manquante!')"
+echo "SUPABASE_KEY défini: $([ -n "$SUPABASE_KEY" ] && echo 'OUI' || echo 'NON — variable manquante!')"
 
 mkdir -p dist/assets
 # Copier les assets statiques
