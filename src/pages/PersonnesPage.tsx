@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, Personne } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users, Upload } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -11,6 +11,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { logEvent } from '../lib/journal'
 import { exportExcel, exportPDF } from '../lib/export'
+import ImportExcelModal from '../components/ImportExcelModal'
 
 // ─── Constantes statiques (hors composant) ───────────────────────────────────
 const PAGE_SIZE = 25
@@ -196,6 +197,7 @@ export default function PersonnesPage() {
   const [viewItem, setViewItem] = useState<Personne | null>(null)
   const [editItem, setEditItem] = useState<Personne | null>(null)
   const [desactiverDialog, setDesactiverDialog] = useState<Personne | null>(null)
+  const [importModal, setImportModal] = useState(false)
 
   const [form, setForm] = useState({ ...emptyForm })
   const [saving, setSaving] = useState(false)
@@ -378,6 +380,11 @@ export default function PersonnesPage() {
             </>
           )}
           {canCreate && (
+            <button onClick={() => setImportModal(true)} className="btn-secondary flex items-center gap-2">
+              <Upload size={16} /> Import Excel
+            </button>
+          )}
+          {canCreate && (
             <button onClick={openAdd} className="btn-primary flex items-center gap-2">
               <Plus size={18} /> Ajouter
             </button>
@@ -540,6 +547,15 @@ export default function PersonnesPage() {
           <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
         </div>
       </Modal>
+
+      {/* Modal Import Excel */}
+      <ImportExcelModal
+        isOpen={importModal}
+        onClose={() => setImportModal(false)}
+        onImported={() => { setImportModal(false); fetchPersonnes() }}
+        origineOptions={origineOptions}
+        langueOptions={langueOptions}
+      />
 
       {/* Dialog désactivation */}
       <ConfirmDialog
