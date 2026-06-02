@@ -214,8 +214,11 @@ export default function PersonnesPage() {
 
   const fetchPersonnes = async () => {
     setLoading(true)
+    // Exclure les personnes déjà membres actifs
+    const { data: membresActifs } = await supabase.from('membres').select('personne_id').eq('actif', true)
+    const membresIds = (membresActifs || []).map((m: any) => m.personne_id)
     const { data } = await supabase.from('personnes').select('*').eq('actif', true).order('nom')
-    setPersonnes(data || [])
+    setPersonnes((data || []).filter((p: any) => !membresIds.includes(p.id)))
     setLoading(false)
   }
 
