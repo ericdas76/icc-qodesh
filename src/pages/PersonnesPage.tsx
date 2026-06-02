@@ -20,9 +20,10 @@ const SITUATIONS = ['celibataire', 'marie', 'divorce', 'veuf']
 
 const emptyForm = {
   nom: '', prenom: '', sexe: '', date_naissance: '', lieu_naissance: '',
-  telephone: '', email: '', profession: '', situation_familiale: '',
+  telephone: '', telephone_whatsapp: '', email: '', profession: '', situation_familiale: '',
   nombre_enfants: 0, nationalite: 'Malagasy', adresse: '', quartier: '',
-  statut: 'nouveau', origine: '', date_premier_contact: format(new Date(), 'yyyy-MM-dd'),
+  statut: 'nouveau', origine: '', langue: '', suivi_par: '', de_passage: 'non',
+  date_premier_contact: format(new Date(), 'yyyy-MM-dd'),
   source_contact: '', notes: ''
 }
 
@@ -44,175 +45,132 @@ interface PersonneFormProps {
   form: typeof emptyForm
   setForm: React.Dispatch<React.SetStateAction<typeof emptyForm>>
   origineOptions: string[]
+  langueOptions: string[]
+  suiviParOptions: { id: string; label: string }[]
 }
 
-function PersonneForm({ form, setForm, origineOptions }: PersonneFormProps) {
+function PersonneForm({ form, setForm, origineOptions, langueOptions, suiviParOptions }: PersonneFormProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-5">
+      {/* Identité */}
       <div>
-        <label className="label">Nom *</label>
-        <input
-          className="input"
-          value={form.nom}
-          onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
-          placeholder="Nom de famille"
-        />
+        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Identité</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Nom *</label>
+            <input className="input uppercase" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} placeholder="Nom de famille" />
+          </div>
+          <div>
+            <label className="label">Prénom *</label>
+            <input className="input" value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))} placeholder="Prénom" />
+          </div>
+          <div>
+            <label className="label">Sexe</label>
+            <select className="input" value={form.sexe} onChange={e => setForm(f => ({ ...f, sexe: e.target.value }))}>
+              <option value="">-- Sélectionner --</option>
+              <option value="M">Homme</option>
+              <option value="F">Femme</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Nationalité</label>
+            <input className="input" value={form.nationalite} onChange={e => setForm(f => ({ ...f, nationalite: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Date de naissance</label>
+            <input type="date" className="input" value={form.date_naissance} onChange={e => setForm(f => ({ ...f, date_naissance: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Lieu de naissance</label>
+            <input className="input" value={form.lieu_naissance} onChange={e => setForm(f => ({ ...f, lieu_naissance: e.target.value }))} />
+          </div>
+        </div>
       </div>
+      {/* Contact & Situation */}
       <div>
-        <label className="label">Prénom *</label>
-        <input
-          className="input"
-          value={form.prenom}
-          onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))}
-          placeholder="Prénom"
-        />
+        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Contact & Situation</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="label">N° Téléphone</label>
+            <input className="input" value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} placeholder="+261 34 00 000 00" />
+          </div>
+          <div>
+            <label className="label">N° WhatsApp</label>
+            <input className="input" value={form.telephone_whatsapp} onChange={e => setForm(f => ({ ...f, telephone_whatsapp: e.target.value }))} placeholder="+261 34 00 000 00" />
+          </div>
+          <div>
+            <label className="label">Email</label>
+            <input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Profession</label>
+            <input className="input" value={form.profession} onChange={e => setForm(f => ({ ...f, profession: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Situation familiale</label>
+            <select className="input" value={form.situation_familiale} onChange={e => setForm(f => ({ ...f, situation_familiale: e.target.value }))}>
+              <option value="">-- Sélectionner --</option>
+              {SITUATIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Nombre d'enfants</label>
+            <input type="number" min={0} className="input" value={form.nombre_enfants} onChange={e => setForm(f => ({ ...f, nombre_enfants: Number(e.target.value) }))} />
+          </div>
+          <div>
+            <label className="label">Adresse / Quartier</label>
+            <input className="input" value={form.quartier} onChange={e => setForm(f => ({ ...f, quartier: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Langue parlée</label>
+            <select className="input" value={form.langue} onChange={e => setForm(f => ({ ...f, langue: e.target.value }))}>
+              <option value="">-- Choisir --</option>
+              {langueOptions.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Suivi par</label>
+            <select className="input" value={form.suivi_par} onChange={e => setForm(f => ({ ...f, suivi_par: e.target.value }))}>
+              <option value="">-- Choisir --</option>
+              {suiviParOptions.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">De passage</label>
+            <select className="input" value={form.de_passage} onChange={e => setForm(f => ({ ...f, de_passage: e.target.value }))}>
+              <option value="non">Non</option>
+              <option value="oui">Oui</option>
+            </select>
+          </div>
+        </div>
       </div>
+      {/* Suivi pastoral */}
       <div>
-        <label className="label">Sexe</label>
-        <select
-          className="input"
-          value={form.sexe}
-          onChange={e => setForm(f => ({ ...f, sexe: e.target.value }))}
-        >
-          <option value="">-- Sélectionner --</option>
-          <option value="M">Homme</option>
-          <option value="F">Femme</option>
-        </select>
-      </div>
-      <div>
-        <label className="label">Date de naissance</label>
-        <input
-          type="date"
-          className="input"
-          value={form.date_naissance}
-          onChange={e => setForm(f => ({ ...f, date_naissance: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="label">Lieu de naissance</label>
-        <input
-          className="input"
-          value={form.lieu_naissance}
-          onChange={e => setForm(f => ({ ...f, lieu_naissance: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="label">Téléphone</label>
-        <input
-          className="input"
-          value={form.telephone}
-          onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
-          placeholder="+261 34 00 000 00"
-        />
-      </div>
-      <div>
-        <label className="label">Email</label>
-        <input
-          type="email"
-          className="input"
-          value={form.email}
-          onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="label">Profession</label>
-        <input
-          className="input"
-          value={form.profession}
-          onChange={e => setForm(f => ({ ...f, profession: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="label">Situation familiale</label>
-        <select
-          className="input"
-          value={form.situation_familiale}
-          onChange={e => setForm(f => ({ ...f, situation_familiale: e.target.value }))}
-        >
-          <option value="">-- Sélectionner --</option>
-          {SITUATIONS.map(s => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="label">Nombre d'enfants</label>
-        <input
-          type="number"
-          min={0}
-          className="input"
-          value={form.nombre_enfants}
-          onChange={e => setForm(f => ({ ...f, nombre_enfants: Number(e.target.value) }))}
-        />
-      </div>
-      <div>
-        <label className="label">Nationalité</label>
-        <input
-          className="input"
-          value={form.nationalite}
-          onChange={e => setForm(f => ({ ...f, nationalite: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="label">Origine *</label>
-        <select
-          className="input"
-          value={form.origine}
-          onChange={e => setForm(f => ({ ...f, origine: e.target.value }))}
-          required
-        >
-          <option value="">-- Sélectionner --</option>
-          {origineOptions.map(o => (
-            <option key={o} value={o}>{o}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="label">Adresse</label>
-        <input
-          className="input"
-          value={form.adresse}
-          onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="label">Quartier</label>
-        <input
-          className="input"
-          value={form.quartier}
-          onChange={e => setForm(f => ({ ...f, quartier: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="label">Date premier contact</label>
-        <input
-          type="date"
-          className="input"
-          value={form.date_premier_contact}
-          onChange={e => setForm(f => ({ ...f, date_premier_contact: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="label">Source contact</label>
-        <select
-          className="input"
-          value={form.source_contact}
-          onChange={e => setForm(f => ({ ...f, source_contact: e.target.value }))}
-        >
-          <option value="">-- Sélectionner --</option>
-          {SOURCES.map(s => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-          ))}
-        </select>
-      </div>
-      <div className="md:col-span-2">
-        <label className="label">Notes</label>
-        <textarea
-          className="input"
-          rows={3}
-          value={form.notes}
-          onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-        />
+        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Suivi pastoral</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Origine *</label>
+            <select className="input" value={form.origine} onChange={e => setForm(f => ({ ...f, origine: e.target.value }))} required>
+              <option value="">-- Sélectionner --</option>
+              {origineOptions.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Date premier contact</label>
+            <input type="date" className="input" value={form.date_premier_contact} onChange={e => setForm(f => ({ ...f, date_premier_contact: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Source contact</label>
+            <select className="input" value={form.source_contact} onChange={e => setForm(f => ({ ...f, source_contact: e.target.value }))}>
+              <option value="">-- Sélectionner --</option>
+              {SOURCES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="label">Notes</label>
+          <textarea className="input" rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+        </div>
       </div>
     </div>
   )
@@ -223,6 +181,8 @@ export default function PersonnesPage() {
   const { hasPermission, user } = useAuth()
   const [personnes, setPersonnes] = useState<Personne[]>([])
   const [origineOptions, setOrigineOptions] = useState<string[]>([])
+  const [langueOptions, setLangueOptions] = useState<string[]>([])
+  const [suiviParOptions, setSuiviParOptions] = useState<{ id: string; label: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterOrigine, setFilterOrigine] = useState('')
@@ -248,6 +208,8 @@ export default function PersonnesPage() {
   useEffect(() => {
     fetchPersonnes()
     fetchOrigines()
+    fetchLangues()
+    fetchSuiviPar()
   }, [])
 
   const fetchPersonnes = async () => {
@@ -265,6 +227,30 @@ export default function PersonnesPage() {
       .eq('actif', true)
       .order('ordre')
     setOrigineOptions((data || []).map(d => d.valeur))
+  }
+
+  const fetchLangues = async () => {
+    const { data } = await supabase
+      .from('listes_parametrables')
+      .select('valeur')
+      .eq('categorie', 'langue')
+      .eq('actif', true)
+      .order('ordre')
+    setLangueOptions((data || []).map(d => d.valeur))
+  }
+
+  const fetchSuiviPar = async () => {
+    const { data } = await supabase
+      .from('membres')
+      .select('id, categorie, personnes(nom, prenom)')
+      .eq('actif', true)
+      .in('categorie', ['Référent', 'Star'])
+    if (data) {
+      setSuiviParOptions(data.map((m: any) => ({
+        id: `${m.personnes?.prenom} ${m.personnes?.nom}`,
+        label: `${m.personnes?.prenom} ${m.personnes?.nom} (${m.categorie})`
+      })))
+    }
   }
 
   const handleSearch = (v: string) => { setSearch(v); setPage(1) }
@@ -290,6 +276,10 @@ export default function PersonnesPage() {
     const { data, error } = await supabase.from('personnes').insert({
       ...form,
       origine: form.origine || null,
+      telephone_whatsapp: form.telephone_whatsapp || null,
+      langue: form.langue || null,
+      suivi_par: form.suivi_par || null,
+      de_passage: form.de_passage === 'oui',
       date_naissance: form.date_naissance || null,
       date_premier_contact: form.date_premier_contact || null,
       nombre_enfants: Number(form.nombre_enfants),
@@ -309,11 +299,14 @@ export default function PersonnesPage() {
     setForm({
       nom: p.nom, prenom: p.prenom, sexe: p.sexe || '',
       date_naissance: p.date_naissance || '', lieu_naissance: p.lieu_naissance || '',
-      telephone: p.telephone || '', email: p.email || '', profession: p.profession || '',
+      telephone: p.telephone || '', telephone_whatsapp: (p as any).telephone_whatsapp || '',
+      email: p.email || '', profession: p.profession || '',
       situation_familiale: p.situation_familiale || '',
       nombre_enfants: p.nombre_enfants, nationalite: p.nationalite,
       adresse: p.adresse || '', quartier: p.quartier || '',
       statut: p.statut, origine: p.origine || '',
+      langue: (p as any).langue || '', suivi_par: (p as any).suivi_par || '',
+      de_passage: (p as any).de_passage ? 'oui' : 'non',
       date_premier_contact: p.date_premier_contact || '',
       source_contact: p.source_contact || '', notes: p.notes || ''
     })
@@ -328,6 +321,10 @@ export default function PersonnesPage() {
     const { error } = await supabase.from('personnes').update({
       ...form,
       origine: form.origine || null,
+      telephone_whatsapp: form.telephone_whatsapp || null,
+      langue: form.langue || null,
+      suivi_par: form.suivi_par || null,
+      de_passage: form.de_passage === 'oui',
       date_naissance: form.date_naissance || null,
       date_premier_contact: form.date_premier_contact || null,
       nombre_enfants: Number(form.nombre_enfants),
@@ -477,7 +474,7 @@ export default function PersonnesPage() {
 
       {/* Modal Ajouter */}
       <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="Nouvelle personne" size="xl">
-        <PersonneForm form={form} setForm={setForm} origineOptions={origineOptions} />
+        <PersonneForm form={form} setForm={setForm} origineOptions={origineOptions} langueOptions={langueOptions} suiviParOptions={suiviParOptions} />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setAddModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={doAdd} disabled={saving} className="btn-primary">
@@ -488,7 +485,7 @@ export default function PersonnesPage() {
 
       {/* Modal Modifier */}
       <Modal isOpen={editModal} onClose={() => setEditModal(false)} title={`Modifier — ${editItem?.prenom} ${editItem?.nom}`} size="xl">
-        <PersonneForm form={form} setForm={setForm} origineOptions={origineOptions} />
+        <PersonneForm form={form} setForm={setForm} origineOptions={origineOptions} langueOptions={langueOptions} suiviParOptions={suiviParOptions} />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setEditModal(false)} className="btn-secondary">Annuler</button>
           <button onClick={doEdit} disabled={saving} className="btn-primary">
