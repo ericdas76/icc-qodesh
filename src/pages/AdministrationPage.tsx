@@ -792,10 +792,11 @@ function EJPListesTab() {
 
       {/* Modal */}
       <Modal
+        key={editItem ? editItem.id : 'new'}
         open={modal}
         onClose={() => setModal(false)}
         title={editItem ? `Modifier — ${editItem.nom || editItem.code}` : `Nouvelle entrée — ${currentSection.label}`}
-        size="sm"
+        size="md"
       >
         <div className="space-y-4">
           {isPCNC ? (
