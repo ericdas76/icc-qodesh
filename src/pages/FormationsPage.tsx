@@ -1049,92 +1049,50 @@ function ClassesEnCoursTab({
 // MODAL APPRENANTS — 3 populations : ejp_membres / stars (profils) / personnes
 // =========================================================================
 
-const BADGE_EJP     = 'inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 rounded-full px-2 py-0.5 font-medium'
-const BADGE_STAR    = 'inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 font-medium'
-const BADGE_PERSONNE = 'inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-medium'
 
-function badgeLabel(type: string) {
-  if (type === 'membre_ejp') return <span className={BADGE_EJP}>🟣 Membre EJP</span>
-  if (type === 'star')        return <span className={BADGE_STAR}>🔵 Star</span>
-  return                             <span className={BADGE_PERSONNE}>🟢 Personne</span>
-}
 
 function ApprenantModal({ classe, onClose, onRefresh }: {
   classe: any
   onClose: () => void
   onRefresh: () => void
 }) {
-  const [inscrits,    setInscrits]    = useState<any[]>([])
-  const [membres,     setMembres]     = useState<any[]>([])  // ejp_membres
-  const [stars,       setStars]       = useState<any[]>([])  // profils star
-  const [personnes,   setPersonnes]   = useState<any[]>([])  // personnes
-  const [search,      setSearch]      = useState('')
-  const [selected,    setSelected]    = useState('')         // id sélectionné pour ajout
-  const [selectedType, setSelectedType] = useState('')       // type de l'élément sélectionné
-  const [loading,     setLoading]     = useState(true)
-  const [saving,      setSaving]      = useState(false)
+  const [inscrits,       setInscrits]       = useState<any[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [saving,         setSaving]         = useState(false)
   const [confirmRetirer, setConfirmRetirer] = useState<any>(null)
+  // Saisie libre
+  const [inputPrenom,    setInputPrenom]    = useState('')
+  const [inputNom,       setInputNom]       = useState('')
 
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
     setLoading(true)
-    const [
-      { data: insc },
-      { data: memb },
-      { data: prof },
-      { data: pers },
-    ] = await Promise.all([
-      supabase.from('inscriptions_formation')
-        .select('id, statut, type_apprenant, ejp_membre_id, profil_id, personne_id, ejp_membres(nom, prenom), profils(nom, prenom), personnes(nom, prenom)')
-        .eq('formation_id', classe.id),
-      supabase.from('ejp_membres').select('id, nom, prenom').eq('actif', true).order('nom'),
-      supabase.from('profils').select('id, nom, prenom, roles(nom)').eq('actif', true).order('nom'),
-      supabase.from('personnes').select('id, nom, prenom').eq('actif', true).order('nom'),
-    ])
-    setInscrits(insc || [])
-    setMembres(memb || [])
-    setStars((prof || []).filter((p: any) => p.roles?.nom === 'star'))
-    setPersonnes(pers || [])
+    const { data } = await supabase
+      .from('inscriptions_formation')
+      .select('id, statut, type_apprenant, nom_apprenant')
+      .eq('formation_id', classe.id)
+      .order('created_at', { ascending: true })
+    setInscrits(data || [])
     setLoading(false)
   }
 
-  // IDs déjà inscrits par type pour éviter les doublons
-  const inscritsMembresIds   = inscrits.filter(i => i.type_apprenant === 'membre_ejp').map(i => i.ejp_membre_id)
-  const inscritsStarsIds     = inscrits.filter(i => i.type_apprenant === 'star').map(i => i.profil_id)
-  const inscritsPersonnesIds = inscrits.filter(i => i.type_apprenant === 'personne').map(i => i.personne_id)
-
-  // Filtrage par recherche
-  const filterFn = (p: any) => {
-    if (!search) return true
-    const s = search.toLowerCase()
-    return (p.nom || '').toLowerCase().includes(s) || (p.prenom || '').toLowerCase().includes(s)
-  }
-
-  const membresDispo   = membres.filter(m => !inscritsMembresIds.includes(m.id) && filterFn(m))
-  const starsDispo     = stars.filter(s => !inscritsStarsIds.includes(s.id) && filterFn(s))
-  const personnesDispo = personnes.filter(p => !inscritsPersonnesIds.includes(p.id) && filterFn(p))
-  const totalDispo     = membresDispo.length + starsDispo.length + personnesDispo.length
-
   const doInscrire = async () => {
-    if (!selected || !selectedType) { toast.error('Sélectionner une personne'); return }
+    const prenom = inputPrenom.trim()
+    const nom    = inputNom.trim()
+    if (!prenom && !nom) { toast.error('Saisir au moins un prénom ou un nom'); return }
     setSaving(true)
     try {
-      const payload: any = {
+      const { error } = await supabase.from('inscriptions_formation').insert({
         formation_id:   classe.id,
         statut:         'inscrit',
-        type_apprenant: selectedType,
-      }
-      if (selectedType === 'membre_ejp') payload.ejp_membre_id = selected
-      if (selectedType === 'star')       payload.profil_id     = selected
-      if (selectedType === 'personne')   payload.personne_id   = selected
-
-      const { error } = await supabase.from('inscriptions_formation').insert(payload)
+        type_apprenant: 'personne',
+        nom_apprenant:  `${prenom} ${nom}`.trim(),
+      })
       if (error) throw error
-      toast.success('Apprenant inscrit')
-      setSelected('')
-      setSelectedType('')
-      setSearch('')
+      toast.success(`${prenom} ${nom} inscrit(e)`.trim())
+      setInputPrenom('')
+      setInputNom('')
       fetchAll()
     } catch (e: any) {
       toast.error('Erreur : ' + e.message)
@@ -1158,16 +1116,7 @@ function ApprenantModal({ classe, onClose, onRefresh }: {
     fetchAll()
   }
 
-  // Nom affiché d'une inscription
-  const nomInscrit = (i: any): string => {
-    if (i.type_apprenant === 'membre_ejp' && i.ejp_membres)
-      return `${i.ejp_membres.prenom || ''} ${i.ejp_membres.nom || ''}`.trim()
-    if (i.type_apprenant === 'star' && i.profils)
-      return `${i.profils.prenom || ''} ${i.profils.nom || ''}`.trim()
-    if (i.personnes)
-      return `${i.personnes.prenom || ''} ${i.personnes.nom || ''}`.trim()
-    return '—'
-  }
+  const nomInscrit = (i: any): string => i.nom_apprenant || '—'
 
   return (
     <>
@@ -1178,13 +1127,12 @@ function ApprenantModal({ classe, onClose, onRefresh }: {
           </div>
         ) : (
           <div className="space-y-6">
+
             {/* Partie haute — inscrits actuels */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Inscrits actuels ({inscrits.length})
-                </h4>
-              </div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Inscrits actuels ({inscrits.length})
+              </h4>
               {inscrits.length === 0 ? (
                 <p className="text-sm text-gray-400 py-4 text-center bg-gray-50 rounded-lg">
                   Aucun apprenant inscrit — utilisez le formulaire ci-dessous pour en ajouter.
@@ -1196,7 +1144,6 @@ function ApprenantModal({ classe, onClose, onRefresh }: {
                       <tr>
                         <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">#</th>
                         <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Nom</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Type</th>
                         <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Statut</th>
                         <th className="px-3 py-2"></th>
                       </tr>
@@ -1206,7 +1153,6 @@ function ApprenantModal({ classe, onClose, onRefresh }: {
                         <tr key={i.id} className="hover:bg-gray-50">
                           <td className="px-3 py-2 text-xs text-gray-400">{idx + 1}</td>
                           <td className="px-3 py-2 font-medium text-gray-800">{nomInscrit(i)}</td>
-                          <td className="px-3 py-2">{badgeLabel(i.type_apprenant || 'personne')}</td>
                           <td className="px-3 py-2">
                             <select
                               value={i.statut}
@@ -1236,89 +1182,50 @@ function ApprenantModal({ classe, onClose, onRefresh }: {
               )}
             </div>
 
-            {/* Partie basse — ajouter un apprenant */}
+            {/* Partie basse — saisie libre */}
             <div className="border-t pt-4">
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 Ajouter un apprenant
               </h4>
-              <div className="flex gap-2 mb-3">
-                <input
-                  className="input flex-1"
-                  placeholder="Rechercher par prénom ou nom..."
-                  value={search}
-                  onChange={e => { setSearch(e.target.value); setSelected(''); setSelectedType('') }}
-                />
-                {search && (
-                  <button onClick={() => { setSearch(''); setSelected(''); setSelectedType('') }}
-                    className="p-2 rounded hover:bg-gray-100 text-gray-400">
-                    ✕
-                  </button>
-                )}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="label">Prénom</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Prénom"
+                    value={inputPrenom}
+                    onChange={e => setInputPrenom(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') doInscrire() }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="label">Nom</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Nom"
+                    value={inputNom}
+                    onChange={e => setInputNom(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') doInscrire() }}
+                  />
+                </div>
+                <button
+                  onClick={doInscrire}
+                  disabled={saving || (!inputPrenom.trim() && !inputNom.trim())}
+                  className="btn btn-primary flex items-center gap-2 shrink-0"
+                >
+                  {saving
+                    ? <><Loader size={14} className="animate-spin" /> Ajout...</>
+                    : <><Plus size={14} /> Ajouter</>
+                  }
+                </button>
               </div>
-
-              {totalDispo === 0 && (search
-                ? <p className="text-sm text-gray-400 text-center py-3">Aucun résultat pour «&nbsp;{search}&nbsp;»</p>
-                : <p className="text-sm text-gray-400 text-center py-3">Toutes les personnes disponibles sont déjà inscrites.</p>
-              )}
-
-              {totalDispo > 0 && (
-                <div className="border rounded-lg max-h-52 overflow-y-auto">
-                  <select
-                    size={Math.min(totalDispo + 3, 10)}
-                    className="w-full text-sm focus:outline-none"
-                    value={selected}
-                    onChange={e => {
-                      const [type, id] = e.target.value.split('::')
-                      setSelected(id || '')
-                      setSelectedType(type || '')
-                    }}
-                  >
-                    {membresDispo.length > 0 && (
-                      <optgroup label="── Membres EJP ──">
-                        {membresDispo.map(m => (
-                          <option key={m.id} value={`membre_ejp::${m.id}`}>
-                            {m.prenom} {m.nom}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {starsDispo.length > 0 && (
-                      <optgroup label="── Stars ──">
-                        {starsDispo.map(s => (
-                          <option key={s.id} value={`star::${s.id}`}>
-                            {s.prenom} {s.nom}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {personnesDispo.length > 0 && (
-                      <optgroup label="── Personnes ──">
-                        {personnesDispo.map(p => (
-                          <option key={p.id} value={`personne::${p.id}`}>
-                            {p.prenom} {p.nom}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </select>
-                </div>
-              )}
-
-              {selected && (
-                <div className="mt-3 flex justify-end">
-                  <button
-                    onClick={doInscrire}
-                    disabled={saving}
-                    className="btn btn-primary flex items-center gap-2"
-                  >
-                    {saving
-                      ? <><Loader size={14} className="animate-spin" /> Inscription...</>
-                      : <><Plus size={14} /> Inscrire</>
-                    }
-                  </button>
-                </div>
-              )}
+              <p className="text-xs text-gray-400 mt-2">
+                Appuyez sur Entrée ou cliquez Ajouter — vous pouvez enchaîner plusieurs ajouts sans fermer.
+              </p>
             </div>
+
           </div>
         )}
 
