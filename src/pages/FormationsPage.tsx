@@ -484,8 +484,8 @@ const EMPTY_FORM_CLASSE = {
   nb_seance_obligatoire: '' as string | number,
   date_creation: '',
   annee: new Date().getFullYear(),
-  enseignant_id: '',
-  assistant_id: '',
+  enseignant_nom: '',
+  assistant_nom: '',
   nb_femme: 0,
   nb_homme: 0,
   date_fin: '',
@@ -530,35 +530,12 @@ function ClassesEnCoursTab({
   const [deleteDialog, setDeleteDialog] = useState<any>(null)
   const [form, setForm]             = useState<any>({ ...EMPTY_FORM_CLASSE })
   const [saving, setSaving]         = useState(false)
-  // Liste profils pour enseignant/assistant
-  const [profils, setProfils]       = useState<{ referents: any[]; stars: any[]; tous: any[] }>({
-    referents: [], stars: [], tous: []
-  })
+  // (profils fetch supprimé — saisie libre enseignant/assistant)
   // Modal apprenants
   const [apprenantClasse, setApprenantClasse] = useState<any>(null)
   const [apprenantModal,  setApprenantModal]  = useState(false)
 
-  useEffect(() => { fetchProfils() }, [])
 
-  const fetchProfils = async () => {    
-    const { data } = await supabase
-      .from('profils')
-      .select('id, nom, prenom, roles(nom)')
-      .eq('actif', true)
-      .order('nom')
-    const tous     = data || []
-    // Filtre par rôle si les données sont disponibles, sinon fallback sur tous
-    const referents = tous.filter((p: any) => {
-      const roleNom = Array.isArray(p.roles) ? p.roles[0]?.nom : p.roles?.nom
-      return roleNom === 'referent'
-    })
-    const stars = tous.filter((p: any) => {
-      const roleNom = Array.isArray(p.roles) ? p.roles[0]?.nom : p.roles?.nom
-      return roleNom === 'star'
-    })
-    // Si aucun rôle reconnu, on met tout le monde dans "tous" pour fallback
-    setProfils({ referents, stars, tous })
-  }
 
   // Pré-remplissage nb_seance / nb_seance_obligatoire selon type choisi
   const handleTypePcncChange = (id: string) => {
@@ -594,8 +571,8 @@ function ClassesEnCoursTab({
       nb_seance_obligatoire:   f.nb_seance_obligatoire ?? '',
       date_creation:           f.date_creation        || '',
       annee:                   f.annee                || new Date().getFullYear(),
-      enseignant_id:           f.enseignant_id        || '',
-      assistant_id:            f.assistant_id         || '',
+      enseignant_nom:          f.enseignant_nom       || (f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}`.trim() : ''),
+      assistant_nom:           f.assistant_nom        || (f.assistant  ? `${f.assistant.prenom}  ${f.assistant.nom}`.trim()  : ''),
       nb_femme:                f.nb_femme             ?? 0,
       nb_homme:                f.nb_homme             ?? 0,
       date_fin:                f.date_fin             || '',
@@ -627,8 +604,8 @@ function ClassesEnCoursTab({
         nb_seance_obligatoire: form.nb_seance_obligatoire !== '' ? Number(form.nb_seance_obligatoire) : null,
         date_creation:         form.date_creation          || null,
         annee:                 Number(form.annee),
-        enseignant_id:         form.enseignant_id          || null,
-        assistant_id:          form.assistant_id           || null,
+        enseignant_nom:        form.enseignant_nom         || null,
+        assistant_nom:         form.assistant_nom          || null,
         nb_femme:              Number(form.nb_femme)       || 0,
         nb_homme:              Number(form.nb_homme)       || 0,
         date_fin:              form.date_fin               || null,
@@ -675,7 +652,7 @@ function ClassesEnCoursTab({
     const data = formations.map(f => ({
       ...f,
       _type_label:    f.ejp_formations_pcnc ? `${f.ejp_formations_pcnc.code} — ${f.ejp_formations_pcnc.libelle || ''}` : (f.classe || '—'),
-      _enseignant_nom: f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}` : '—',
+      _enseignant_nom: f.enseignant_nom || (f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}` : '—'),
       _total:          (f.nb_femme || 0) + (f.nb_homme || 0),
       'promotions.nom': f.promotions?.nom || '—',
     }))
@@ -746,61 +723,15 @@ function ClassesEnCoursTab({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="label">Enseignant</label>
-            <select className="input" value={form.enseignant_id}
-              onChange={e => setForm((f: any) => ({ ...f, enseignant_id: e.target.value }))}>
-              <option value="">— Sélectionner —</option>
-              {(profils.referents.length > 0 || profils.stars.length > 0) ? (
-                <>
-                  {profils.referents.length > 0 && (
-                    <optgroup label="── Référents ──">
-                      {profils.referents.map(p => (
-                        <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {profils.stars.length > 0 && (
-                    <optgroup label="── Stars ──">
-                      {profils.stars.map(p => (
-                        <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                </>
-              ) : (
-                profils.tous.map(p => (
-                  <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                ))
-              )}
-            </select>
+            <input type="text" className="input" placeholder="Nom de l'enseignant"
+              value={form.enseignant_nom}
+              onChange={e => setForm((f: any) => ({ ...f, enseignant_nom: e.target.value }))} />
           </div>
           <div>
             <label className="label">Assistant</label>
-            <select className="input" value={form.assistant_id}
-              onChange={e => setForm((f: any) => ({ ...f, assistant_id: e.target.value }))}>
-              <option value="">— Sélectionner —</option>
-              {(profils.referents.length > 0 || profils.stars.length > 0) ? (
-                <>
-                  {profils.referents.length > 0 && (
-                    <optgroup label="── Référents ──">
-                      {profils.referents.map(p => (
-                        <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {profils.stars.length > 0 && (
-                    <optgroup label="── Stars ──">
-                      {profils.stars.map(p => (
-                        <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                </>
-              ) : (
-                profils.tous.map(p => (
-                  <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                ))
-              )}
-            </select>
+            <input type="text" className="input" placeholder="Nom de l'assistant"
+              value={form.assistant_nom}
+              onChange={e => setForm((f: any) => ({ ...f, assistant_nom: e.target.value }))} />
           </div>
         </div>
       </div>
@@ -921,7 +852,7 @@ function ClassesEnCoursTab({
               <tbody className="divide-y divide-gray-100">
                 {paginatedClasses.map(f => {
                   const typePcnc = f.ejp_formations_pcnc
-                  const ensLabel = f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}` : '—'
+                  const ensLabel = f.enseignant_nom || (f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}` : '—')
                   const total    = (f.nb_femme || 0) + (f.nb_homme || 0)
                   return (
                     <tr key={f.id} className="hover:bg-gray-50 transition-colors">
@@ -1040,8 +971,8 @@ function ClassesEnCoursTab({
             <div>
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Encadrement</h4>
               <div className="grid grid-cols-2 gap-3">
-                <div><p className="text-xs text-gray-400">Enseignant</p><p className="font-medium">{viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—'}</p></div>
-                <div><p className="text-xs text-gray-400">Assistant</p><p className="font-medium">{viewItem.assistant ? `${viewItem.assistant.prenom} ${viewItem.assistant.nom}` : '—'}</p></div>
+                <div><p className="text-xs text-gray-400">Enseignant</p><p className="font-medium">{viewItem.enseignant_nom || (viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—')}</p></div>
+                <div><p className="text-xs text-gray-400">Assistant</p><p className="font-medium">{viewItem.assistant_nom  || (viewItem.assistant  ? `${viewItem.assistant.prenom}  ${viewItem.assistant.nom}`  : '—')}</p></div>
               </div>
             </div>
             <div>
@@ -1465,7 +1396,7 @@ function ClassesCloatureesTab({
               <tbody className="divide-y divide-gray-100">
                 {paginatedClasses.map(f => {
                   const typePcnc  = f.ejp_formations_pcnc
-                  const ensLabel  = f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}` : '—'
+                  const ensLabel  = f.enseignant_nom || (f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}` : '—')
                   return (
                     <tr key={f.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
@@ -1523,8 +1454,8 @@ function ClassesCloatureesTab({
                   ? `${viewItem.ejp_formations_pcnc.code}${viewItem.ejp_formations_pcnc.libelle ? ' — ' + viewItem.ejp_formations_pcnc.libelle : ''}`
                   : (viewItem.classe || '—')],
                 ['Année',           String(viewItem.annee || '—')],
-                ['Enseignant',      viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—'],
-                ['Assistant',       viewItem.assistant  ? `${viewItem.assistant.prenom}  ${viewItem.assistant.nom}`  : '—'],
+                ['Enseignant',      viewItem.enseignant_nom || (viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—')],
+                ['Assistant',       viewItem.assistant_nom  || (viewItem.assistant  ? `${viewItem.assistant.prenom}  ${viewItem.assistant.nom}`  : '—')],
                 ['Nb femmes',       String(viewItem.nb_femme  ?? 0)],
                 ['Nb hommes',       String(viewItem.nb_homme  ?? 0)],
                 ['Total inscrits',  String((viewItem.nb_femme || 0) + (viewItem.nb_homme || 0))],
