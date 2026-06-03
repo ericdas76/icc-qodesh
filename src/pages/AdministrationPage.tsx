@@ -138,7 +138,7 @@ function UtilisateursTab() {
   )
 }
 
-const CATEGORIES = ['statut_membre', 'departement', 'situation_familiale', 'nationalite', 'origine', 'langue', 'issue_phoning', 'type_appel', 'type_activite_rna']
+const CATEGORIES = ['statut_membre', 'departement', 'situation_familiale', 'nationalite', 'origine', 'langue', 'source_contact', 'issue_phoning', 'type_appel', 'type_activite_rna']
 const CATEGORIES_LABELS: Record<string, string> = {
   statut_membre: 'Catégories membres',
   departement: 'Départements',
@@ -148,6 +148,7 @@ const CATEGORIES_LABELS: Record<string, string> = {
   langue: 'Langues',
   issue_phoning: 'Issues phoning',
   type_appel: 'Types appel',
+  source_contact: 'Sources contact',
   type_activite_rna: 'Types activité RNA',
 }
 
