@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Users, UserPlus, Phone, Home, BookOpen, Clock, AlertCircle, TrendingUp, CalendarOff, X, Building2 } from 'lucide-react'
+import { Users, UserPlus, Phone, Home, BookOpen, Clock, AlertCircle, TrendingUp, CalendarOff, X, Building2, Church, Star } from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
 import { format, differenceInDays, isAfter } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -16,6 +16,8 @@ interface Stats {
   inscrits_formation: number
   taches_en_retard: number
   conges_en_cours: number
+  ejp_membres: number
+  ejp_activites: number
 }
 
 interface CongeEnCours {
@@ -37,7 +39,9 @@ export default function DashboardPage() {
     appels_semaine: 0,
     inscrits_formation: 0,
     taches_en_retard: 0,
-    conges_en_cours: 0
+    conges_en_cours: 0,
+    ejp_membres: 0,
+    ejp_activites: 0
   })
   const [arrivants, setArrivants] = useState<any[]>([])
   const [tachesEnRetard, setTachesEnRetard] = useState<any[]>([])
@@ -69,6 +73,8 @@ export default function DashboardPage() {
       { count: inscritsFormation },
       { count: tachesRetard },
       { count: congesEnCours },
+      { count: ejpMembres },
+      { count: ejpActivites },
       { data: arrivantsList },
       { data: tachesList },
       { data: journal }
@@ -84,6 +90,8 @@ export default function DashboardPage() {
         .eq('actif', true)
         .eq('statut', 'en_cours')
         .eq('annee', annee),
+      supabase.from('ejp_membres').select('*', { count: 'exact', head: true }).eq('actif', true),
+      supabase.from('ejp_activites').select('*', { count: 'exact', head: true }).eq('actif', true),
       supabase.from('personnes').select('id, nom, prenom, statut, created_at, nationalite').eq('actif', true).order('created_at', { ascending: false }).limit(5),
       supabase.from('taches_suivi').select('*, personnes(nom, prenom)').eq('statut', 'en_attente').lt('echeance', today).order('echeance').limit(5),
       supabase.from('journal_evenements').select('*, profils(nom, prenom)').order('created_at', { ascending: false }).limit(8)
@@ -97,7 +105,9 @@ export default function DashboardPage() {
       appels_semaine: appelsSemaine || 0,
       inscrits_formation: inscritsFormation || 0,
       taches_en_retard: tachesRetard || 0,
-      conges_en_cours: congesEnCours || 0
+      conges_en_cours: congesEnCours || 0,
+      ejp_membres: ejpMembres || 0,
+      ejp_activites: ejpActivites || 0
     })
     setArrivants(arrivantsList || [])
     setTachesEnRetard(tachesList || [])
@@ -168,6 +178,8 @@ export default function DashboardPage() {
       onClick: handleCongesTileClick,
       clickable: true
     },
+    { label: 'Membres EJP', value: stats.ejp_membres, icon: Church, color: 'text-violet-600', bg: 'bg-violet-50', onClick: undefined },
+    { label: 'Activités EJP', value: stats.ejp_activites, icon: Star, color: 'text-fuchsia-600', bg: 'bg-fuchsia-50', onClick: undefined },
   ]
 
   return (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, Profil, Role, ListeParametrable } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit, Trash2, Users, List, Shield, Loader, Save, Search, UserCog } from 'lucide-react'
+import { Plus, Edit, Trash2, Users, List, Shield, Loader, Save, Search, UserCog, Church } from 'lucide-react'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import toast from 'react-hot-toast'
@@ -9,7 +9,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { logEvent } from '../lib/journal'
 
-type AdminTab = 'utilisateurs' | 'listes' | 'roles' | 'personnes'
+type AdminTab = 'utilisateurs' | 'listes' | 'roles' | 'personnes' | 'ejp'
 
 export default function AdministrationPage() {
   const { isAdmin } = useAuth()
@@ -31,6 +31,7 @@ export default function AdministrationPage() {
     { id: 'listes', label: 'Listes paramétrables', icon: <List size={16} /> },
     { id: 'roles', label: 'Rôles', icon: <Shield size={16} /> },
     { id: 'personnes', label: 'Personnes', icon: <UserCog size={16} /> },
+    { id: 'ejp', label: 'Listes EJP', icon: <Church size={16} /> },
   ]
 
   return (
@@ -51,6 +52,7 @@ export default function AdministrationPage() {
       {tab === 'listes' && <ListesTab />}
       {tab === 'roles' && <RolesTab />}
       {tab === 'personnes' && <PersonnesTab />}
+      {tab === 'ejp' && <EJPListesTab />}
     </div>
   )
 }
@@ -610,6 +612,209 @@ function PersonnesTab() {
           </button>
         </div>
       </Modal>
+    </div>
+  )
+}
+
+// ─── Onglet Listes EJP ────────────────────────────────────────────────────────
+
+type EJPSection = 'departements' | 'types_rencontre' | 'formations_pcnc'
+
+const EJP_SECTIONS: { id: EJPSection; label: string; table: string }[] = [
+  { id: 'departements', label: 'Départements EJP', table: 'ejp_departements' },
+  { id: 'types_rencontre', label: 'Types de rencontre EJP', table: 'ejp_types_rencontre' },
+  { id: 'formations_pcnc', label: 'Formations PCNC', table: 'ejp_formations_pcnc' },
+]
+
+function EJPListesTab() {
+  const [section, setSection] = useState<EJPSection>('departements')
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [modal, setModal] = useState(false)
+  const [editItem, setEditItem] = useState<any>(null)
+  const [form, setForm] = useState({ nom: '', code: '', libelle: '' })
+  const [saving, setSaving] = useState(false)
+  const [confirmToggle, setConfirmToggle] = useState<any>(null)
+
+  const currentSection = EJP_SECTIONS.find(s => s.id === section)!
+
+  useEffect(() => { fetchItems() }, [section])
+
+  const fetchItems = async () => {
+    setLoading(true)
+    const { data } = await supabase.from(currentSection.table).select('*').order('created_at')
+    setItems(data || [])
+    setLoading(false)
+  }
+
+  const openAdd = () => {
+    setEditItem(null)
+    setForm({ nom: '', code: '', libelle: '' })
+    setModal(true)
+  }
+
+  const openEdit = (item: any) => {
+    setEditItem(item)
+    setForm({ nom: item.nom || '', code: item.code || '', libelle: item.libelle || '' })
+    setModal(true)
+  }
+
+  const save = async () => {
+    const isPCNC = section === 'formations_pcnc'
+    if (isPCNC && !form.code.trim()) return toast.error('Code obligatoire')
+    if (!isPCNC && !form.nom.trim()) return toast.error('Nom obligatoire')
+    setSaving(true)
+    try {
+      const payload = isPCNC
+        ? { code: form.code.trim(), libelle: form.libelle.trim() || null }
+        : { nom: form.nom.trim() }
+
+      if (editItem) {
+        const { error } = await supabase.from(currentSection.table).update(payload).eq('id', editItem.id)
+        if (error) throw error
+        toast.success('Entrée modifiée')
+      } else {
+        const { error } = await supabase.from(currentSection.table).insert({ ...payload, actif: true })
+        if (error) throw error
+        toast.success('Entrée ajoutée')
+      }
+      setModal(false)
+      fetchItems()
+    } catch (e: any) {
+      toast.error('Erreur : ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleActif = async (item: any) => {
+    const { error } = await supabase.from(currentSection.table).update({ actif: !item.actif }).eq('id', item.id)
+    if (error) { toast.error('Erreur'); return }
+    toast.success(item.actif ? 'Entrée désactivée' : 'Entrée réactivée')
+    setConfirmToggle(null)
+    fetchItems()
+  }
+
+  const isPCNC = section === 'formations_pcnc'
+
+  return (
+    <div>
+      {/* Sélection section */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {EJP_SECTIONS.map(s => (
+          <button
+            key={s.id}
+            onClick={() => setSection(s.id)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              section === s.id ? 'bg-purple-700 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="p-4 border-b flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-slate-700">{currentSection.label}</h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {items.filter(i => i.actif).length} active(s) · {items.filter(i => !i.actif).length} inactive(s)
+            </p>
+          </div>
+          <button onClick={openAdd} className="btn-primary flex items-center gap-1 text-xs py-1.5">
+            <Plus size={14} /> Ajouter
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-700" /></div>
+        ) : (
+          <div className="divide-y">
+            {items.map(item => (
+              <div key={item.id} className={`flex items-center justify-between p-3 ${!item.actif ? 'bg-slate-50' : ''}`}>
+                <div className="flex items-center gap-3">
+                  {isPCNC ? (
+                    <>
+                      <span className={`font-mono font-semibold ${item.actif ? 'text-purple-700' : 'text-slate-400'}`}>{item.code}</span>
+                      {item.libelle && <span className={`text-sm ${item.actif ? 'text-slate-600' : 'text-slate-400'}`}>— {item.libelle}</span>}
+                    </>
+                  ) : (
+                    <span className={`font-medium ${item.actif ? 'text-slate-800' : 'text-slate-400 line-through'}`}>{item.nom}</span>
+                  )}
+                  {!item.actif && <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-600">Inactif</span>}
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => openEdit(item)}
+                    className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                    title="Modifier"
+                  >
+                    <Edit size={14} />
+                  </button>
+                  <button
+                    onClick={() => item.actif ? setConfirmToggle(item) : toggleActif(item)}
+                    className={`p-1.5 rounded text-xs ${
+                      item.actif ? 'hover:bg-red-50 text-slate-400 hover:text-red-500' : 'hover:bg-green-50 text-slate-400 hover:text-green-600'
+                    }`}
+                    title={item.actif ? 'Désactiver' : 'Réactiver'}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {items.length === 0 && (
+              <p className="p-6 text-sm text-slate-500 text-center">Aucune entrée — cliquez sur Ajouter pour commencer</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Modal */}
+      <Modal
+        isOpen={modal}
+        onClose={() => setModal(false)}
+        title={editItem ? `Modifier — ${editItem.nom || editItem.code}` : `Nouvelle entrée — ${currentSection.label}`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          {isPCNC ? (
+            <>
+              <div>
+                <label className="label">Code *</label>
+                <input className="input font-mono" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="Ex: 001/BDR" autoFocus />
+              </div>
+              <div>
+                <label className="label">Libellé (optionnel)</label>
+                <input className="input" value={form.libelle} onChange={e => setForm(f => ({ ...f, libelle: e.target.value }))} placeholder="Description de la formation" />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="label">Nom *</label>
+              <input className="input" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} placeholder="Ex: Logistique" autoFocus />
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+          <button onClick={() => setModal(false)} className="btn-secondary">Annuler</button>
+          <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2">
+            {saving ? <><Loader size={14} className="animate-spin" /> Enregistrement...</> : <><Save size={14} /> Enregistrer</>}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Confirm désactivation */}
+      <ConfirmDialog
+        isOpen={!!confirmToggle}
+        onClose={() => setConfirmToggle(null)}
+        onConfirm={() => confirmToggle && toggleActif(confirmToggle)}
+        title="Désactiver l'entrée ?"
+        message={`Désactiver "${confirmToggle?.nom || confirmToggle?.code}" ?`}
+        confirmLabel="Désactiver"
+        variant="danger"
+      />
     </div>
   )
 }

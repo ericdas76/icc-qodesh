@@ -30,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
       { to: '/activites/conges', label: 'Congés' },
       { to: '/activites/rna', label: 'RNA' },
       { to: '/activites/evangelisation', label: 'Évangélisation' },
+      { to: '/activites/ejp', label: 'EJP' },
     ]
   },
   { to: '/membres-star', label: 'STAR', icon: <Star size={18} /> },
