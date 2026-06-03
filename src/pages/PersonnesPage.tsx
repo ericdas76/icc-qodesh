@@ -357,8 +357,8 @@ export default function PersonnesPage() {
   }
 
   // --- Export ---
-  const doExportExcel = () => exportExcel('Personnes', COLS_EXPORT, filtered, 'Personnes')
-  const doExportPDF = () => exportPDF('Liste des Personnes', COLS_EXPORT, filtered, `${filtered.length} enregistrements`)
+  const doExportExcel = () => exportExcel('Personnes', COLS_EXPORT, filtered as any, 'Personnes')
+  const doExportPDF = () => exportPDF('Liste des Personnes', COLS_EXPORT, filtered as any, `${filtered.length} enregistrements`)
 
   return (
     <div className="space-y-6">

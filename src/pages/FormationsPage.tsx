@@ -442,7 +442,7 @@ export default function FormationsPage() {
           {loadingPromos ? (
             <div className="p-8 text-center text-gray-400">Chargement...</div>
           ) : promotions.length === 0 ? (
-            <EmptyState message="Aucune promotion" />
+            <EmptyState icon={BookOpen} title="Aucune promotion" />
           ) : (
             <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -498,7 +498,7 @@ export default function FormationsPage() {
           {loadingClasses ? (
             <div className="p-8 text-center text-gray-400">Chargement...</div>
           ) : formations.length === 0 ? (
-            <EmptyState message="Aucune classe de formation" />
+            <EmptyState icon={BookOpen} title="Aucune classe de formation" />
           ) : (
             <div className="card overflow-hidden p-0">
               <div className="overflow-x-auto">
@@ -566,7 +566,7 @@ export default function FormationsPage() {
       )}
 
       {/* ===== MODALS PROMOTIONS ===== */}
-      <Modal isOpen={addPromoModal} onClose={() => setAddPromoModal(false)} title="Nouvelle promotion" size="md">
+      <Modal open={addPromoModal} onClose={() => setAddPromoModal(false)} title="Nouvelle promotion" size="md">
         <PromoForm />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setAddPromoModal(false)} className="btn btn-secondary">Annuler</button>
@@ -574,7 +574,7 @@ export default function FormationsPage() {
         </div>
       </Modal>
 
-      <Modal isOpen={editPromoModal} onClose={() => setEditPromoModal(false)} title={`Modifier — ${editPromo?.nom}`} size="md">
+      <Modal open={editPromoModal} onClose={() => setEditPromoModal(false)} title={`Modifier — ${editPromo?.nom}`} size="md">
         <PromoForm />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setEditPromoModal(false)} className="btn btn-secondary">Annuler</button>
@@ -582,7 +582,7 @@ export default function FormationsPage() {
         </div>
       </Modal>
 
-      <Modal isOpen={viewPromoModal} onClose={() => setViewPromoModal(false)} title={`Promotion — ${viewPromo?.nom}`} size="md">
+      <Modal open={viewPromoModal} onClose={() => setViewPromoModal(false)} title={`Promotion — ${viewPromo?.nom}`} size="md">
         {viewPromo && (
           <div className="space-y-3 text-sm">
             <div className="grid grid-cols-2 gap-3">
@@ -607,7 +607,7 @@ export default function FormationsPage() {
       </Modal>
 
       {/* ===== MODALS CLASSES ===== */}
-      <Modal isOpen={addClasseModal} onClose={() => setAddClasseModal(false)} title="Nouvelle classe" size="lg">
+      <Modal open={addClasseModal} onClose={() => setAddClasseModal(false)} title="Nouvelle classe" size="lg">
         <ClasseForm />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setAddClasseModal(false)} className="btn btn-secondary">Annuler</button>
@@ -615,7 +615,7 @@ export default function FormationsPage() {
         </div>
       </Modal>
 
-      <Modal isOpen={editClasseModal} onClose={() => setEditClasseModal(false)} title={`Modifier classe — ${editClasse?.code}`} size="lg">
+      <Modal open={editClasseModal} onClose={() => setEditClasseModal(false)} title={`Modifier classe — ${editClasse?.code}`} size="lg">
         <ClasseForm />
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setEditClasseModal(false)} className="btn btn-secondary">Annuler</button>
@@ -623,7 +623,7 @@ export default function FormationsPage() {
         </div>
       </Modal>
 
-      <Modal isOpen={viewClasseModal} onClose={() => setViewClasseModal(false)} title={`Classe — ${viewClasse?.code}`} size="lg">
+      <Modal open={viewClasseModal} onClose={() => setViewClasseModal(false)} title={`Classe — ${viewClasse?.code}`} size="lg">
         {viewClasse && (
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-3">
@@ -664,7 +664,7 @@ export default function FormationsPage() {
       </Modal>
 
       {/* Modal Apprenants */}
-      <Modal isOpen={apprenantModal} onClose={() => setApprenantModal(false)} title={`Apprenants — ${gestionClasse?.code}`} size="lg">
+      <Modal open={apprenantModal} onClose={() => setApprenantModal(false)} title={`Apprenants — ${gestionClasse?.code}`} size="lg">
         <div className="space-y-3">
           <p className="text-sm text-gray-500">Cocher/décocher les personnes inscrites à cette classe.</p>
           <div className="max-h-80 overflow-y-auto space-y-1 border rounded-lg p-2">
@@ -691,10 +691,10 @@ export default function FormationsPage() {
       </Modal>
 
       {/* Confirms */}
-      <ConfirmDialog isOpen={!!deletePromoDialog} onClose={() => setDeletePromoDialog(null)} onConfirm={doDeletePromo}
-        title="Désactiver la promotion" message={`Désactiver "${deletePromoDialog?.nom}" ?`} confirmLabel="Désactiver" variant="danger" />
-      <ConfirmDialog isOpen={!!deleteClasseDialog} onClose={() => setDeleteClasseDialog(null)} onConfirm={doDeleteClasse}
-        title="Désactiver la classe" message={`Désactiver la classe "${deleteClasseDialog?.code}" ?`} confirmLabel="Désactiver" variant="danger" />
+      <ConfirmDialog open={!!deletePromoDialog} onClose={() => setDeletePromoDialog(null)} onConfirm={doDeletePromo}
+        title="Désactiver la promotion" message={`Désactiver "${deletePromoDialog?.nom}" ?`} confirmLabel="Désactiver" danger={true} />
+      <ConfirmDialog open={!!deleteClasseDialog} onClose={() => setDeleteClasseDialog(null)} onConfirm={doDeleteClasse}
+        title="Désactiver la classe" message={`Désactiver la classe "${deleteClasseDialog?.code}" ?`} confirmLabel="Désactiver" danger={true} />
     </div>
   )
 }
