@@ -302,7 +302,7 @@ function MembresEJPTab() {
               </tbody>
             </table>
           </div>
-          <Pagination page={page} total={items.length} pageSize={PAGE_SIZE} onChange={setPage} />
+          <Pagination page={page} total={items.length} pageSize={PAGE_SIZE} onPage={setPage} />
         </div>
       )}
 
@@ -746,7 +746,7 @@ function ActivitesEJPTab() {
               </tbody>
             </table>
           </div>
-          <Pagination page={page} total={items.length} pageSize={PAGE_SIZE} onChange={setPage} />
+          <Pagination page={page} total={items.length} pageSize={PAGE_SIZE} onPage={setPage} />
         </div>
       )}
 
