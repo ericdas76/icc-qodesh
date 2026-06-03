@@ -665,7 +665,8 @@ function ClassesEnCoursTab({
   const paginatedClasses = formations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   // ── Formulaire partagé Ajouter / Modifier ────────────────────────────────
-  const ClasseForm = () => (
+  // classeFormJsx : JSX inline (pas de sous-composant) pour éviter le remontage au re-render
+  const classeFormJsx = (
     <div className="space-y-5">
       {/* Section 1 — Identification */}
       <div>
@@ -926,7 +927,7 @@ function ClassesEnCoursTab({
       {/* Modal Ajouter */}
       <Modal key={`add-${addModal}`} open={addModal} onClose={() => setAddModal(false)}
         title="Nouvelle classe" size="xl">
-        <ClasseForm />
+        {classeFormJsx}
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setAddModal(false)} className="btn btn-secondary">Annuler</button>
           <button onClick={() => doSave(false)} disabled={saving} className="btn btn-primary flex items-center gap-2">
@@ -938,7 +939,7 @@ function ClassesEnCoursTab({
       {/* Modal Modifier */}
       <Modal key={`edit-${editItem?.id}`} open={editModal} onClose={() => setEditModal(false)}
         title={`Modifier — ${editItem?.code || ''}`} size="xl">
-        <ClasseForm />
+        {classeFormJsx}
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setEditModal(false)} className="btn btn-secondary">Annuler</button>
           <button onClick={() => doSave(true)} disabled={saving} className="btn btn-primary flex items-center gap-2">
