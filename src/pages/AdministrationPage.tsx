@@ -792,7 +792,7 @@ function EJPListesTab() {
 
       {/* Modal */}
       <Modal
-        key={editItem ? editItem.id : 'new'}
+        key={`${section}-${editItem ? editItem.id : 'new'}`}
         open={modal}
         onClose={() => setModal(false)}
         title={editItem ? `Modifier — ${editItem.nom || editItem.code}` : `Nouvelle entrée — ${currentSection.label}`}
