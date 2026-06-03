@@ -101,7 +101,7 @@ function MembresEJPTab() {
       { data: lng },
       { data: src }
     ] = await Promise.all([
-      supabase.from('ejp_membres').select('*, ejp_departements(nom), ejp_formations_pcnc(code, libelle)').order('nom'),
+      supabase.from('ejp_membres').select('*, ejp_departements(nom), ejp_formations_pcnc(code, libelle, nb_seance, nb_seance_obligatoire)').order('nom'),
       supabase.from('ejp_departements').select('*').eq('actif', true).order('nom'),
       supabase.from('ejp_formations_pcnc').select('*').eq('actif', true).order('code'),
       supabase.from('listes_parametrables').select('valeur').eq('categorie', 'langue').eq('actif', true).order('ordre'),
@@ -330,7 +330,21 @@ function MembresEJPTab() {
               <div><span className="text-slate-400 text-xs">Département EJP</span><p>{viewItem.ejp_departements?.nom || '—'}</p></div>
               <div><span className="text-slate-400 text-xs">Baptême</span><p>{viewItem.bapteme ? 'Oui' : 'Non'}</p></div>
               {viewItem.bapteme && <div><span className="text-slate-400 text-xs">Date baptême</span><p>{viewItem.date_bapteme || '—'}</p></div>}
-              <div><span className="text-slate-400 text-xs">Formation PCNC</span><p>{viewItem.ejp_formations_pcnc?.code || '—'}</p></div>
+              <div>
+                <span className="text-slate-400 text-xs">Formation PCNC</span>
+                {viewItem.ejp_formations_pcnc ? (
+                  <div>
+                    <p className="font-medium">{viewItem.ejp_formations_pcnc.code}{viewItem.ejp_formations_pcnc.libelle ? ` — ${viewItem.ejp_formations_pcnc.libelle}` : ''}</p>
+                    {(viewItem.ejp_formations_pcnc.nb_seance != null || viewItem.ejp_formations_pcnc.nb_seance_obligatoire != null) && (
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {viewItem.ejp_formations_pcnc.nb_seance != null && `${viewItem.ejp_formations_pcnc.nb_seance} séance${viewItem.ejp_formations_pcnc.nb_seance > 1 ? 's' : ''} au total`}
+                        {viewItem.ejp_formations_pcnc.nb_seance != null && viewItem.ejp_formations_pcnc.nb_seance_obligatoire != null && ' · '}
+                        {viewItem.ejp_formations_pcnc.nb_seance_obligatoire != null && `${viewItem.ejp_formations_pcnc.nb_seance_obligatoire} obligatoire${viewItem.ejp_formations_pcnc.nb_seance_obligatoire > 1 ? 's' : ''}`}
+                      </p>
+                    )}
+                  </div>
+                ) : <p>—</p>}
+              </div>
             </div>
             {viewItem.note && <div><span className="text-slate-400 text-xs">Note</span><p className="mt-1 text-slate-700">{viewItem.note}</p></div>}
           </div>
@@ -438,7 +452,14 @@ function MembresEJPTab() {
                 <label className="label">Formation PCNC</label>
                 <select className="input" value={form.formation_pcnc_id} onChange={e => setForm((f: any) => ({ ...f, formation_pcnc_id: e.target.value }))}>
                   <option value="">— Sélectionner —</option>
-                  {formationsPCNC.map(f => <option key={f.id} value={f.id}>{f.code}{f.libelle ? ` — ${f.libelle}` : ''}</option>)}
+                  {formationsPCNC.map(f => (
+                    <option key={f.id} value={f.id}>
+                      {f.code}{f.libelle ? ` — ${f.libelle}` : ''}
+                      {f.nb_seance != null ? ` (${f.nb_seance} séances` : ''}
+                      {f.nb_seance != null && f.nb_seance_obligatoire != null ? `, ${f.nb_seance_obligatoire} oblig.` : ''}
+                      {f.nb_seance != null ? ')' : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

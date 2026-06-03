@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Users, UserPlus, Phone, Home, BookOpen, Clock, AlertCircle, TrendingUp, CalendarOff, X, Building2, Church, Star } from 'lucide-react'
+import { Users, UserPlus, Phone, Home, BookOpen, AlertCircle, TrendingUp, CalendarOff, X, Building2, Church, Star, GraduationCap, Layout } from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
-import { format, differenceInDays, isAfter } from 'date-fns'
+import { format, differenceInDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
 interface Stats {
@@ -18,6 +18,16 @@ interface Stats {
   conges_en_cours: number
   ejp_membres: number
   ejp_activites: number
+  promotions_en_cours: number
+  classes_ouvertes: number
+}
+
+interface ClasseParType {
+  type_id: string
+  code: string
+  libelle: string
+  nb_classes: number
+  nb_apprenants: number
 }
 
 interface CongeEnCours {
@@ -41,8 +51,12 @@ export default function DashboardPage() {
     taches_en_retard: 0,
     conges_en_cours: 0,
     ejp_membres: 0,
-    ejp_activites: 0
+    ejp_activites: 0,
+    promotions_en_cours: 0,
+    classes_ouvertes: 0
   })
+  const [classesParType, setClassesParType] = useState<ClasseParType[]>([])
+  const [classesDetailModal, setClassesDetailModal] = useState(false)
   const [arrivants, setArrivants] = useState<any[]>([])
   const [tachesEnRetard, setTachesEnRetard] = useState<any[]>([])
   const [activiteRecente, setActiviteRecente] = useState<any[]>([])
@@ -75,9 +89,12 @@ export default function DashboardPage() {
       { count: congesEnCours },
       { count: ejpMembres },
       { count: ejpActivites },
+      { count: promotionsEnCours },
+      { count: classesOuvertes },
       { data: arrivantsList },
       { data: tachesList },
-      { data: journal }
+      { data: journal },
+      { data: formationsData }
     ] = await Promise.all([
       supabase.from('personnes').select('*', { count: 'exact', head: true }).eq('actif', true),
       supabase.from('personnes').select('*', { count: 'exact', head: true }).eq('actif', true).gte('created_at', debutMois),
@@ -92,9 +109,16 @@ export default function DashboardPage() {
         .eq('annee', annee),
       supabase.from('ejp_membres').select('*', { count: 'exact', head: true }).eq('actif', true),
       supabase.from('ejp_activites').select('*', { count: 'exact', head: true }).eq('actif', true),
+      supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('actif', true),
+      supabase.from('formations').select('*', { count: 'exact', head: true }).eq('cloture', false),
       supabase.from('personnes').select('id, nom, prenom, statut, created_at, nationalite').eq('actif', true).order('created_at', { ascending: false }).limit(5),
       supabase.from('taches_suivi').select('*, personnes(nom, prenom)').eq('statut', 'en_attente').lt('echeance', today).order('echeance').limit(5),
-      supabase.from('journal_evenements').select('*, profils(nom, prenom)').order('created_at', { ascending: false }).limit(8)
+      supabase.from('journal_evenements').select('*, profils(nom, prenom)').order('created_at', { ascending: false }).limit(8),
+      supabase.from('formations').select(`
+        id, cloture,
+        ejp_formations_pcnc(id, code, libelle),
+        inscriptions_formation(id)
+      `).eq('cloture', false)
     ])
 
     setStats({
@@ -107,11 +131,36 @@ export default function DashboardPage() {
       taches_en_retard: tachesRetard || 0,
       conges_en_cours: congesEnCours || 0,
       ejp_membres: ejpMembres || 0,
-      ejp_activites: ejpActivites || 0
+      ejp_activites: ejpActivites || 0,
+      promotions_en_cours: promotionsEnCours || 0,
+      classes_ouvertes: classesOuvertes || 0
     })
     setArrivants(arrivantsList || [])
     setTachesEnRetard(tachesList || [])
     setActiviteRecente(journal || [])
+
+    // Calcul classes par type PCNC
+    const byType = new Map<string, ClasseParType>()
+    ;(formationsData || []).forEach((f: any) => {
+      const t = f.ejp_formations_pcnc
+      if (!t) return
+      const existing = byType.get(t.id)
+      const nbApp = (f.inscriptions_formation || []).length
+      if (existing) {
+        existing.nb_classes++
+        existing.nb_apprenants += nbApp
+      } else {
+        byType.set(t.id, {
+          type_id: t.id,
+          code: t.code || '',
+          libelle: t.libelle || '',
+          nb_classes: 1,
+          nb_apprenants: nbApp
+        })
+      }
+    })
+    setClassesParType(Array.from(byType.values()).sort((a, b) => a.code.localeCompare(b.code)))
+
     setLoading(false)
   }
 
@@ -180,6 +229,23 @@ export default function DashboardPage() {
     },
     { label: 'Membres EJP', value: stats.ejp_membres, icon: Church, color: 'text-violet-600', bg: 'bg-violet-50', onClick: undefined },
     { label: 'Activités EJP', value: stats.ejp_activites, icon: Star, color: 'text-fuchsia-600', bg: 'bg-fuchsia-50', onClick: undefined },
+    {
+      label: 'Promotions actives',
+      value: stats.promotions_en_cours,
+      icon: GraduationCap,
+      color: 'text-teal-600',
+      bg: 'bg-teal-50',
+      onClick: undefined
+    },
+    {
+      label: 'Classes ouvertes',
+      value: stats.classes_ouvertes,
+      icon: Layout,
+      color: stats.classes_ouvertes > 0 ? 'text-emerald-600' : 'text-slate-400',
+      bg: stats.classes_ouvertes > 0 ? 'bg-emerald-50' : 'bg-slate-50',
+      onClick: () => setClassesDetailModal(true),
+      clickable: stats.classes_ouvertes > 0
+    },
   ]
 
   return (
@@ -294,6 +360,113 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ===== BLOC FORMATIONS EJP ===== */}
+      {classesParType.length > 0 && (
+        <div className="card">
+          <div className="p-4 border-b flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <GraduationCap size={18} className="text-emerald-600" />
+              <h3 className="font-semibold text-slate-800 text-sm">Classes EJP en cours — par type</h3>
+            </div>
+            <Link to="/formations" className="text-xs text-blue-600 hover:underline">Voir tout</Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase tracking-wide">Code</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase tracking-wide">Type de classe</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase tracking-wide">Classes</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase tracking-wide">Apprenants</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {classesParType.map(ct => (
+                  <tr key={ct.type_id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-2.5">
+                      <span className="inline-block bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded">{ct.code}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-700 text-sm">{ct.libelle}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <span className="font-semibold text-slate-800">{ct.nb_classes}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <span className="font-semibold text-emerald-700">{ct.nb_apprenants}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                <tr>
+                  <td colSpan={2} className="px-4 py-2 text-xs font-bold text-slate-600 uppercase">Total</td>
+                  <td className="px-4 py-2 text-right font-bold text-slate-800">
+                    {classesParType.reduce((s, c) => s + c.nb_classes, 0)}
+                  </td>
+                  <td className="px-4 py-2 text-right font-bold text-emerald-700">
+                    {classesParType.reduce((s, c) => s + c.nb_apprenants, 0)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL DÉTAIL CLASSES OUVERTES ===== */}
+      {classesDetailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[70vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-emerald-50 rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center">
+                  <Layout size={18} className="text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-900 text-base">Classes ouvertes</h2>
+                  <p className="text-xs text-slate-500">Répartition par type de classe EJP</p>
+                </div>
+              </div>
+              <button onClick={() => setClassesDetailModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {classesParType.length === 0 ? (
+                <div className="text-center py-10 text-slate-500">
+                  <GraduationCap size={36} className="mx-auto mb-3 text-slate-300" />
+                  <p>Aucune classe ouverte actuellement</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {classesParType.map(ct => (
+                    <div key={ct.type_id} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:bg-slate-50">
+                      <span className="inline-block bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded min-w-[3rem] text-center">{ct.code}</span>
+                      <span className="flex-1 text-sm text-slate-700">{ct.libelle}</span>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-bold text-slate-800">{ct.nb_classes} classe{ct.nb_classes > 1 ? 's' : ''}</div>
+                        <div className="text-xs text-emerald-600">{ct.nb_apprenants} apprenant{ct.nb_apprenants > 1 ? 's' : ''}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mt-3 pt-3 border-t flex justify-between text-sm font-semibold text-slate-700">
+                    <span>Total</span>
+                    <span className="text-emerald-700">{classesParType.reduce((s, c) => s + c.nb_apprenants, 0)} apprenants</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-3 border-t bg-slate-50 rounded-b-xl flex justify-between items-center">
+              <Link to="/formations" onClick={() => setClassesDetailModal(false)} className="text-sm text-blue-600 hover:underline">
+                Gérer les formations →
+              </Link>
+              <button onClick={() => setClassesDetailModal(false)} className="btn-secondary text-sm px-5">
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== MODAL CONGÉS EN COURS ===== */}
       {congesModal && (
