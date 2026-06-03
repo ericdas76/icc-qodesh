@@ -534,6 +534,9 @@ function ClassesEnCoursTab({
   const [profils, setProfils]       = useState<{ referents: any[]; stars: any[] }>({
     referents: [], stars: []
   })
+  // Modal apprenants
+  const [apprenantClasse, setApprenantClasse] = useState<any>(null)
+  const [apprenantModal,  setApprenantModal]  = useState(false)
 
   useEffect(() => { fetchProfils() }, [])
 
@@ -943,7 +946,7 @@ function ClassesEnCoursTab({
                           )}
                           <button
                             className="p-1.5 rounded hover:bg-green-50 text-green-600" title="Gérer apprenants"
-                            onClick={() => toast('Gestion apprenants — disponible à l\'étape suivante', { icon: '🔧' })}>
+                            onClick={() => { setApprenantClasse(f); setApprenantModal(true) }}>
                             <Users size={15} />
                           </button>
                           {canDelete && (
@@ -1065,6 +1068,15 @@ function ClassesEnCoursTab({
         </div>
       </Modal>
 
+      {/* Modal Apprenants */}
+      {apprenantModal && apprenantClasse && (
+        <ApprenantModal
+          classe={apprenantClasse}
+          onClose={() => { setApprenantModal(false); setApprenantClasse(null) }}
+          onRefresh={() => { setApprenantModal(false); setApprenantClasse(null); onRefresh() }}
+        />
+      )}
+
       {/* Confirm désactivation */}
       <ConfirmDialog
         open={!!deleteDialog} onClose={() => setDeleteDialog(null)} onConfirm={doDelete}
@@ -1077,18 +1089,451 @@ function ClassesEnCoursTab({
 }
 
 // =========================================================================
-// ONGLET 4 — CLASSES CLÔTURÉES (placeholder → développé étape 5)
+// MODAL APPRENANTS — 3 populations : ejp_membres / stars (profils) / personnes
+// =========================================================================
+
+const BADGE_EJP     = 'inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 rounded-full px-2 py-0.5 font-medium'
+const BADGE_STAR    = 'inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 font-medium'
+const BADGE_PERSONNE = 'inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-medium'
+
+function badgeLabel(type: string) {
+  if (type === 'membre_ejp') return <span className={BADGE_EJP}>🟣 Membre EJP</span>
+  if (type === 'star')        return <span className={BADGE_STAR}>🔵 Star</span>
+  return                             <span className={BADGE_PERSONNE}>🟢 Personne</span>
+}
+
+function ApprenantModal({ classe, onClose, onRefresh }: {
+  classe: any
+  onClose: () => void
+  onRefresh: () => void
+}) {
+  const [inscrits,    setInscrits]    = useState<any[]>([])
+  const [membres,     setMembres]     = useState<any[]>([])  // ejp_membres
+  const [stars,       setStars]       = useState<any[]>([])  // profils star
+  const [personnes,   setPersonnes]   = useState<any[]>([])  // personnes
+  const [search,      setSearch]      = useState('')
+  const [selected,    setSelected]    = useState('')         // id sélectionné pour ajout
+  const [selectedType, setSelectedType] = useState('')       // type de l'élément sélectionné
+  const [loading,     setLoading]     = useState(true)
+  const [saving,      setSaving]      = useState(false)
+  const [confirmRetirer, setConfirmRetirer] = useState<any>(null)
+
+  useEffect(() => { fetchAll() }, [])
+
+  const fetchAll = async () => {
+    setLoading(true)
+    const [
+      { data: insc },
+      { data: memb },
+      { data: prof },
+      { data: pers },
+    ] = await Promise.all([
+      supabase.from('inscriptions_formation')
+        .select('id, statut, type_apprenant, ejp_membre_id, profil_id, personne_id, ejp_membres(nom, prenom), profils(nom, prenom), personnes(nom, prenom)')
+        .eq('formation_id', classe.id),
+      supabase.from('ejp_membres').select('id, nom, prenom').eq('actif', true).order('nom'),
+      supabase.from('profils').select('id, nom, prenom, roles(nom)').eq('actif', true).order('nom'),
+      supabase.from('personnes').select('id, nom, prenom').eq('actif', true).order('nom'),
+    ])
+    setInscrits(insc || [])
+    setMembres(memb || [])
+    setStars((prof || []).filter((p: any) => p.roles?.nom === 'star'))
+    setPersonnes(pers || [])
+    setLoading(false)
+  }
+
+  // IDs déjà inscrits par type pour éviter les doublons
+  const inscritsMembresIds   = inscrits.filter(i => i.type_apprenant === 'membre_ejp').map(i => i.ejp_membre_id)
+  const inscritsStarsIds     = inscrits.filter(i => i.type_apprenant === 'star').map(i => i.profil_id)
+  const inscritsPersonnesIds = inscrits.filter(i => i.type_apprenant === 'personne').map(i => i.personne_id)
+
+  // Filtrage par recherche
+  const filterFn = (p: any) => {
+    if (!search) return true
+    const s = search.toLowerCase()
+    return (p.nom || '').toLowerCase().includes(s) || (p.prenom || '').toLowerCase().includes(s)
+  }
+
+  const membresDispo   = membres.filter(m => !inscritsMembresIds.includes(m.id) && filterFn(m))
+  const starsDispo     = stars.filter(s => !inscritsStarsIds.includes(s.id) && filterFn(s))
+  const personnesDispo = personnes.filter(p => !inscritsPersonnesIds.includes(p.id) && filterFn(p))
+  const totalDispo     = membresDispo.length + starsDispo.length + personnesDispo.length
+
+  const doInscrire = async () => {
+    if (!selected || !selectedType) { toast.error('Sélectionner une personne'); return }
+    setSaving(true)
+    try {
+      const payload: any = {
+        formation_id:   classe.id,
+        statut:         'inscrit',
+        type_apprenant: selectedType,
+      }
+      if (selectedType === 'membre_ejp') payload.ejp_membre_id = selected
+      if (selectedType === 'star')       payload.profil_id     = selected
+      if (selectedType === 'personne')   payload.personne_id   = selected
+
+      const { error } = await supabase.from('inscriptions_formation').insert(payload)
+      if (error) throw error
+      toast.success('Apprenant inscrit')
+      setSelected('')
+      setSelectedType('')
+      setSearch('')
+      fetchAll()
+    } catch (e: any) {
+      toast.error('Erreur : ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const doChangerStatut = async (inscId: string, statut: string) => {
+    const { error } = await supabase.from('inscriptions_formation').update({ statut }).eq('id', inscId)
+    if (error) { toast.error('Erreur'); return }
+    fetchAll()
+  }
+
+  const doRetirer = async () => {
+    if (!confirmRetirer) return
+    const { error } = await supabase.from('inscriptions_formation').delete().eq('id', confirmRetirer.id)
+    if (error) { toast.error('Erreur'); return }
+    toast.success('Apprenant retiré')
+    setConfirmRetirer(null)
+    fetchAll()
+  }
+
+  // Nom affiché d'une inscription
+  const nomInscrit = (i: any): string => {
+    if (i.type_apprenant === 'membre_ejp' && i.ejp_membres)
+      return `${i.ejp_membres.prenom || ''} ${i.ejp_membres.nom || ''}`.trim()
+    if (i.type_apprenant === 'star' && i.profils)
+      return `${i.profils.prenom || ''} ${i.profils.nom || ''}`.trim()
+    if (i.personnes)
+      return `${i.personnes.prenom || ''} ${i.personnes.nom || ''}`.trim()
+    return '—'
+  }
+
+  return (
+    <>
+      <Modal open={true} onClose={onClose} title={`Apprenants — ${classe.code || '—'}`} size="xl">
+        {loading ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader size={24} className="animate-spin text-blue-600" />
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Partie haute — inscrits actuels */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Inscrits actuels ({inscrits.length})
+                </h4>
+              </div>
+              {inscrits.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center bg-gray-50 rounded-lg">
+                  Aucun apprenant inscrit — utilisez le formulaire ci-dessous pour en ajouter.
+                </p>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">#</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Nom</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Type</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Statut</th>
+                        <th className="px-3 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {inscrits.map((i, idx) => (
+                        <tr key={i.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 text-xs text-gray-400">{idx + 1}</td>
+                          <td className="px-3 py-2 font-medium text-gray-800">{nomInscrit(i)}</td>
+                          <td className="px-3 py-2">{badgeLabel(i.type_apprenant || 'personne')}</td>
+                          <td className="px-3 py-2">
+                            <select
+                              value={i.statut}
+                              onChange={e => doChangerStatut(i.id, e.target.value)}
+                              className="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white"
+                            >
+                              <option value="inscrit">Inscrit</option>
+                              <option value="en_cours">En cours</option>
+                              <option value="termine">Terminé</option>
+                              <option value="abandonne">Abandonné</option>
+                            </select>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <button
+                              onClick={() => setConfirmRetirer(i)}
+                              className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"
+                              title="Retirer"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Partie basse — ajouter un apprenant */}
+            <div className="border-t pt-4">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Ajouter un apprenant
+              </h4>
+              <div className="flex gap-2 mb-3">
+                <input
+                  className="input flex-1"
+                  placeholder="Rechercher par prénom ou nom..."
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setSelected(''); setSelectedType('') }}
+                />
+                {search && (
+                  <button onClick={() => { setSearch(''); setSelected(''); setSelectedType('') }}
+                    className="p-2 rounded hover:bg-gray-100 text-gray-400">
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {totalDispo === 0 && (search
+                ? <p className="text-sm text-gray-400 text-center py-3">Aucun résultat pour «&nbsp;{search}&nbsp;»</p>
+                : <p className="text-sm text-gray-400 text-center py-3">Toutes les personnes disponibles sont déjà inscrites.</p>
+              )}
+
+              {totalDispo > 0 && (
+                <div className="border rounded-lg max-h-52 overflow-y-auto">
+                  <select
+                    size={Math.min(totalDispo + 3, 10)}
+                    className="w-full text-sm focus:outline-none"
+                    value={selected}
+                    onChange={e => {
+                      const [type, id] = e.target.value.split('::')
+                      setSelected(id || '')
+                      setSelectedType(type || '')
+                    }}
+                  >
+                    {membresDispo.length > 0 && (
+                      <optgroup label="── Membres EJP ──">
+                        {membresDispo.map(m => (
+                          <option key={m.id} value={`membre_ejp::${m.id}`}>
+                            {m.prenom} {m.nom}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {starsDispo.length > 0 && (
+                      <optgroup label="── Stars ──">
+                        {starsDispo.map(s => (
+                          <option key={s.id} value={`star::${s.id}`}>
+                            {s.prenom} {s.nom}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {personnesDispo.length > 0 && (
+                      <optgroup label="── Personnes ──">
+                        {personnesDispo.map(p => (
+                          <option key={p.id} value={`personne::${p.id}`}>
+                            {p.prenom} {p.nom}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                </div>
+              )}
+
+              {selected && (
+                <div className="mt-3 flex justify-end">
+                  <button
+                    onClick={doInscrire}
+                    disabled={saving}
+                    className="btn btn-primary flex items-center gap-2"
+                  >
+                    {saving
+                      ? <><Loader size={14} className="animate-spin" /> Inscription...</>
+                      : <><Plus size={14} /> Inscrire</>
+                    }
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end mt-4 pt-4 border-t">
+          <button onClick={onRefresh} className="btn btn-secondary">Fermer</button>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!confirmRetirer}
+        onClose={() => setConfirmRetirer(null)}
+        onConfirm={doRetirer}
+        title="Retirer l'apprenant"
+        message={`Retirer "${confirmRetirer ? nomInscrit(confirmRetirer) : ''}" de cette classe ?`}
+        confirmLabel="Retirer"
+        danger={true}
+      />
+    </>
+  )
+}
+
+// =========================================================================
+// ONGLET 4 — CLASSES CLÔTURÉES
 // =========================================================================
 function ClassesCloatureesTab({
   formations, onRefresh
 }: {
   formations: any[], onRefresh: () => void
 }) {
+  const [page, setPage]               = useState(1)
+  const [viewModal, setViewModal]     = useState(false)
+  const [viewItem, setViewItem]       = useState<any>(null)
+  const [reouvrirDialog, setReouvrirDialog] = useState<any>(null)
+
+  const doReouvrir = async () => {
+    if (!reouvrirDialog) return
+    const { error } = await supabase.from('formations')
+      .update({ cloture: false }).eq('id', reouvrirDialog.id)
+    if (error) { toast.error('Erreur'); return }
+    toast.success('Classe ré-ouverte — elle est de retour dans "Classes en cours"')
+    setReouvrirDialog(null)
+    onRefresh()
+  }
+
+  const nbInscrits = (f: any) =>
+    (f.inscriptions_formation || []).filter((i: any) => i.statut !== 'abandonne').length
+
+  const paginatedClasses = formations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   return (
-    <div className="card p-8 text-center text-gray-400">
-      <Lock size={36} className="mx-auto mb-3 text-gray-300" />
-      <p className="font-medium text-gray-500">Classes clôturées</p>
-      <p className="text-xs mt-1 text-gray-400">Cette section sera disponible à l'étape suivante.</p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          {formations.length} classe{formations.length > 1 ? 's' : ''} clôturée{formations.length > 1 ? 's' : ''}
+        </p>
+      </div>
+
+      {formations.length === 0 ? (
+        <EmptyState icon={Lock} title="Aucune classe clôturée"
+          description="Les classes clôturées depuis l'onglet «&nbsp;Classes en cours&nbsp;» apparaîtront ici." />
+      ) : (
+        <div className="card overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Code</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Type PCNC</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Promotion</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Enseignant</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-600">Apprenants</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Date fin</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paginatedClasses.map(f => {
+                  const typePcnc  = f.ejp_formations_pcnc
+                  const ensLabel  = f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}` : '—'
+                  return (
+                    <tr key={f.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-xs text-gray-600 font-bold">{f.code || '—'}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {typePcnc
+                          ? <span className="text-sm">
+                              <span className="font-semibold text-purple-700">{typePcnc.code}</span>
+                              {typePcnc.libelle && <span className="text-gray-500 ml-1 text-xs">— {typePcnc.libelle}</span>}
+                            </span>
+                          : <span className="text-gray-400 text-xs">{f.classe || '—'}</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">{f.promotions?.nom || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{ensLabel}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center gap-1 text-gray-600">
+                          <Users size={13} /> {nbInscrits(f)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{fmtDate(f.date_fin)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => { setViewItem(f); setViewModal(true) }}
+                            className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="Voir">
+                            <Eye size={15} />
+                          </button>
+                          <button onClick={() => setReouvrirDialog(f)}
+                            className="p-1.5 rounded hover:bg-green-50 text-green-600" title="Ré-ouvrir">
+                            <Unlock size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pagination total={formations.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
+        </div>
+      )}
+
+      {/* Modal Voir */}
+      <Modal open={viewModal} onClose={() => setViewModal(false)}
+        title={`Classe clôturée — ${viewItem?.code || '—'}`} size="lg">
+        {viewItem && (
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                ['Code',            viewItem.code || '—'],
+                ['Promotion',       viewItem.promotions?.nom || '—'],
+                ['Type PCNC',       viewItem.ejp_formations_pcnc
+                  ? `${viewItem.ejp_formations_pcnc.code}${viewItem.ejp_formations_pcnc.libelle ? ' — ' + viewItem.ejp_formations_pcnc.libelle : ''}`
+                  : (viewItem.classe || '—')],
+                ['Année',           String(viewItem.annee || '—')],
+                ['Enseignant',      viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—'],
+                ['Assistant',       viewItem.assistant  ? `${viewItem.assistant.prenom}  ${viewItem.assistant.nom}`  : '—'],
+                ['Nb femmes',       String(viewItem.nb_femme  ?? 0)],
+                ['Nb hommes',       String(viewItem.nb_homme  ?? 0)],
+                ['Total inscrits',  String((viewItem.nb_femme || 0) + (viewItem.nb_homme || 0))],
+                ['Examen prévu',    viewItem.examen_prevu ? 'Oui' : 'Non'],
+                ['Redoublants',     String(viewItem.nb_redoublant ?? 0)],
+                ['Abandons',        String(viewItem.nb_abandon ?? 0)],
+                ['Date de fin',     fmtDate(viewItem.date_fin)],
+              ].map(([l, v]) => (
+                <div key={l}><p className="text-xs text-gray-400">{l}</p><p className="font-medium">{v}</p></div>
+              ))}
+            </div>
+            {viewItem.description && (
+              <div>
+                <p className="text-xs text-gray-400">Description</p>
+                <p className="mt-1 bg-gray-50 rounded p-2 text-gray-700">{viewItem.description}</p>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="flex justify-end mt-4">
+          <button onClick={() => setViewModal(false)} className="btn btn-secondary">Fermer</button>
+        </div>
+      </Modal>
+
+      {/* Confirm ré-ouverture */}
+      <ConfirmDialog
+        open={!!reouvrirDialog}
+        onClose={() => setReouvrirDialog(null)}
+        onConfirm={doReouvrir}
+        title="Ré-ouvrir cette classe ?"
+        message={`La classe "${reouvrirDialog?.code}" sera remise dans "Classes en cours".`}
+        confirmLabel="Ré-ouvrir"
+        danger={false}
+      />
     </div>
   )
 }
