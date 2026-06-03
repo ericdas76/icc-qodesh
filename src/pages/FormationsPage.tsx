@@ -530,9 +530,9 @@ function ClassesEnCoursTab({
   const [deleteDialog, setDeleteDialog] = useState<any>(null)
   const [form, setForm]             = useState<any>({ ...EMPTY_FORM_CLASSE })
   const [saving, setSaving]         = useState(false)
-  // Liste profils référents + stars pour enseignant/assistant
-  const [profils, setProfils]       = useState<{ referents: any[]; stars: any[] }>({
-    referents: [], stars: []
+  // Liste profils pour enseignant/assistant
+  const [profils, setProfils]       = useState<{ referents: any[]; stars: any[]; tous: any[] }>({
+    referents: [], stars: [], tous: []
   })
   // Modal apprenants
   const [apprenantClasse, setApprenantClasse] = useState<any>(null)
@@ -546,9 +546,18 @@ function ClassesEnCoursTab({
       .select('id, nom, prenom, roles(nom)')
       .eq('actif', true)
       .order('nom')
-    const referents = (data || []).filter((p: any) => p.roles?.nom === 'referent')
-    const stars     = (data || []).filter((p: any) => p.roles?.nom === 'star')
-    setProfils({ referents, stars })
+    const tous     = data || []
+    // Filtre par rôle si les données sont disponibles, sinon fallback sur tous
+    const referents = tous.filter((p: any) => {
+      const roleNom = Array.isArray(p.roles) ? p.roles[0]?.nom : p.roles?.nom
+      return roleNom === 'referent'
+    })
+    const stars = tous.filter((p: any) => {
+      const roleNom = Array.isArray(p.roles) ? p.roles[0]?.nom : p.roles?.nom
+      return roleNom === 'star'
+    })
+    // Si aucun rôle reconnu, on met tout le monde dans "tous" pour fallback
+    setProfils({ referents, stars, tous })
   }
 
   // Pré-remplissage nb_seance / nb_seance_obligatoire selon type choisi
@@ -740,19 +749,27 @@ function ClassesEnCoursTab({
             <select className="input" value={form.enseignant_id}
               onChange={e => setForm((f: any) => ({ ...f, enseignant_id: e.target.value }))}>
               <option value="">— Sélectionner —</option>
-              {profils.referents.length > 0 && (
-                <optgroup label="── Référents ──">
-                  {profils.referents.map(p => (
-                    <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                  ))}
-                </optgroup>
-              )}
-              {profils.stars.length > 0 && (
-                <optgroup label="── Stars ──">
-                  {profils.stars.map(p => (
-                    <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                  ))}
-                </optgroup>
+              {(profils.referents.length > 0 || profils.stars.length > 0) ? (
+                <>
+                  {profils.referents.length > 0 && (
+                    <optgroup label="── Référents ──">
+                      {profils.referents.map(p => (
+                        <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {profils.stars.length > 0 && (
+                    <optgroup label="── Stars ──">
+                      {profils.stars.map(p => (
+                        <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </>
+              ) : (
+                profils.tous.map(p => (
+                  <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                ))
               )}
             </select>
           </div>
@@ -761,19 +778,27 @@ function ClassesEnCoursTab({
             <select className="input" value={form.assistant_id}
               onChange={e => setForm((f: any) => ({ ...f, assistant_id: e.target.value }))}>
               <option value="">— Sélectionner —</option>
-              {profils.referents.length > 0 && (
-                <optgroup label="── Référents ──">
-                  {profils.referents.map(p => (
-                    <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                  ))}
-                </optgroup>
-              )}
-              {profils.stars.length > 0 && (
-                <optgroup label="── Stars ──">
-                  {profils.stars.map(p => (
-                    <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
-                  ))}
-                </optgroup>
+              {(profils.referents.length > 0 || profils.stars.length > 0) ? (
+                <>
+                  {profils.referents.length > 0 && (
+                    <optgroup label="── Référents ──">
+                      {profils.referents.map(p => (
+                        <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {profils.stars.length > 0 && (
+                    <optgroup label="── Stars ──">
+                      {profils.stars.map(p => (
+                        <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </>
+              ) : (
+                profils.tous.map(p => (
+                  <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                ))
               )}
             </select>
           </div>
