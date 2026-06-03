@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Plus, Eye, Edit2, Trash2, BookOpen, Users,
-  GraduationCap, Lock, List, Clock
+  GraduationCap, Lock, List, Download, Save, Loader, Unlock
 } from 'lucide-react'
+import { exportExcel } from '../lib/export'
 import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -473,8 +474,45 @@ function TypesClassesTab({ typesPcnc }: { typesPcnc: any[] }) {
 }
 
 // =========================================================================
-// ONGLET 3 — CLASSES EN COURS (placeholder étape 2 → développé étape 3)
+// ONGLET 3 — CLASSES EN COURS
 // =========================================================================
+
+const EMPTY_FORM_CLASSE = {
+  formation_pcnc_id: '',
+  promotion_id: '',
+  nb_seance: '' as string | number,
+  nb_seance_obligatoire: '' as string | number,
+  date_creation: '',
+  annee: new Date().getFullYear(),
+  enseignant_id: '',
+  assistant_id: '',
+  nb_femme: 0,
+  nb_homme: 0,
+  date_fin: '',
+  examen_prevu: false,
+  nb_redoublant: 0,
+  nb_abandon: 0,
+  description: '',
+  cloture: false,
+}
+
+const COLS_EXPORT_CLASSES = [
+  { header: 'Code',             key: 'code' },
+  { header: 'Type PCNC',        key: '_type_label' },
+  { header: 'Promotion',        key: 'promotions.nom' },
+  { header: 'Enseignant',       key: '_enseignant_nom' },
+  { header: 'Nb femmes',        key: 'nb_femme' },
+  { header: 'Nb hommes',        key: 'nb_homme' },
+  { header: 'Total inscrits',   key: '_total' },
+  { header: 'Séances',          key: 'nb_seance' },
+  { header: 'Séances oblig.',   key: 'nb_seance_obligatoire' },
+  { header: 'Examen prévu',     key: 'examen_prevu' },
+  { header: 'Redoublants',      key: 'nb_redoublant' },
+  { header: 'Abandons',         key: 'nb_abandon' },
+  { header: 'Date fin',         key: 'date_fin' },
+  { header: 'Description',      key: 'description' },
+]
+
 function ClassesEnCoursTab({
   formations, promotions, typesPcnc,
   canCreate, canEdit, canDelete, onRefresh
@@ -483,17 +521,563 @@ function ClassesEnCoursTab({
   canCreate: boolean, canEdit: boolean, canDelete: boolean,
   onRefresh: () => void
 }) {
+  const [page, setPage]             = useState(1)
+  const [addModal, setAddModal]     = useState(false)
+  const [editModal, setEditModal]   = useState(false)
+  const [viewModal, setViewModal]   = useState(false)
+  const [editItem, setEditItem]     = useState<any>(null)
+  const [viewItem, setViewItem]     = useState<any>(null)
+  const [deleteDialog, setDeleteDialog] = useState<any>(null)
+  const [form, setForm]             = useState<any>({ ...EMPTY_FORM_CLASSE })
+  const [saving, setSaving]         = useState(false)
+  // Liste profils référents + stars pour enseignant/assistant
+  const [profils, setProfils]       = useState<{ referents: any[]; stars: any[] }>({
+    referents: [], stars: []
+  })
+
+  useEffect(() => { fetchProfils() }, [])
+
+  const fetchProfils = async () => {    
+    const { data } = await supabase
+      .from('profils')
+      .select('id, nom, prenom, roles(nom)')
+      .eq('actif', true)
+      .order('nom')
+    const referents = (data || []).filter((p: any) => p.roles?.nom === 'referent')
+    const stars     = (data || []).filter((p: any) => p.roles?.nom === 'star')
+    setProfils({ referents, stars })
+  }
+
+  // Pré-remplissage nb_seance / nb_seance_obligatoire selon type choisi
+  const handleTypePcncChange = (id: string) => {
+    const type = typesPcnc.find(t => t.id === id)
+    setForm((f: any) => ({
+      ...f,
+      formation_pcnc_id: id,
+      nb_seance: type?.nb_seance ?? '',
+      nb_seance_obligatoire: type?.nb_seance_obligatoire ?? '',
+    }))
+  }
+
+  // Code auto-généré
+  const codePreview = (() => {
+    const type  = typesPcnc.find(t => t.id === form.formation_pcnc_id)
+    const promo = promotions.find(p => p.id === form.promotion_id)
+    if (!type || !promo) return ''
+    return genCodeClasse(type.code, promo.nom, form.annee)
+  })()
+
+  const openAdd = () => {
+    setEditItem(null)
+    setForm({ ...EMPTY_FORM_CLASSE })
+    setAddModal(true)
+  }
+
+  const openEdit = (f: any) => {
+    setEditItem(f)
+    setForm({
+      formation_pcnc_id:       f.formation_pcnc_id    || '',
+      promotion_id:            f.promotion_id         || '',
+      nb_seance:               f.nb_seance            ?? '',
+      nb_seance_obligatoire:   f.nb_seance_obligatoire ?? '',
+      date_creation:           f.date_creation        || '',
+      annee:                   f.annee                || new Date().getFullYear(),
+      enseignant_id:           f.enseignant_id        || '',
+      assistant_id:            f.assistant_id         || '',
+      nb_femme:                f.nb_femme             ?? 0,
+      nb_homme:                f.nb_homme             ?? 0,
+      date_fin:                f.date_fin             || '',
+      examen_prevu:            f.examen_prevu         ?? false,
+      nb_redoublant:           f.nb_redoublant        ?? 0,
+      nb_abandon:              f.nb_abandon           ?? 0,
+      description:             f.description          || '',
+      cloture:                 f.cloture              ?? false,
+    })
+    setEditModal(true)
+  }
+
+  const doSave = async (isEdit: boolean) => {
+    if (!form.formation_pcnc_id) { toast.error('Type de classe obligatoire'); return }
+    if (!form.promotion_id)      { toast.error('Promotion obligatoire'); return }
+    setSaving(true)
+    try {
+      const type  = typesPcnc.find(t => t.id === form.formation_pcnc_id)
+      const promo = promotions.find(p => p.id === form.promotion_id)
+      const code  = (type && promo) ? genCodeClasse(type.code, promo.nom, form.annee) : null
+
+      const payload: any = {
+        formation_pcnc_id:     form.formation_pcnc_id     || null,
+        promotion_id:          form.promotion_id           || null,
+        code,
+        nom:                   promo?.nom                  || '',
+        classe:                type?.code                  || '',
+        nb_seance:             form.nb_seance !== ''       ? Number(form.nb_seance)              : null,
+        nb_seance_obligatoire: form.nb_seance_obligatoire !== '' ? Number(form.nb_seance_obligatoire) : null,
+        date_creation:         form.date_creation          || null,
+        annee:                 Number(form.annee),
+        enseignant_id:         form.enseignant_id          || null,
+        assistant_id:          form.assistant_id           || null,
+        nb_femme:              Number(form.nb_femme)       || 0,
+        nb_homme:              Number(form.nb_homme)       || 0,
+        date_fin:              form.date_fin               || null,
+        examen_prevu:          form.examen_prevu,
+        nb_redoublant:         Number(form.nb_redoublant)  || 0,
+        nb_abandon:            Number(form.nb_abandon)     || 0,
+        description:           form.description            || null,
+        cloture:               form.cloture,
+      }
+
+      if (isEdit && editItem) {
+        const { error } = await supabase.from('formations').update(payload).eq('id', editItem.id)
+        if (error) throw error
+        await logEvent('formations', 'modifier', editItem.id, `Classe modifiée : ${code}`)
+        toast.success('Classe mise à jour')
+        setEditModal(false)
+      } else {
+        const { data, error } = await supabase.from('formations')
+          .insert({ ...payload, actif: true }).select().single()
+        if (error) throw error
+        await logEvent('formations', 'creer', data.id, `Classe créée : ${code}`)
+        toast.success('Classe créée')
+        setAddModal(false)
+      }
+      onRefresh()
+    } catch (e: any) {
+      toast.error('Erreur : ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const doDelete = async () => {
+    if (!deleteDialog) return
+    const { error } = await supabase.from('formations')
+      .update({ actif: false }).eq('id', deleteDialog.id)
+    if (error) { toast.error('Erreur'); return }
+    toast.success('Classe désactivée')
+    setDeleteDialog(null)
+    onRefresh()
+  }
+
+  const doExportExcel = () => {
+    const data = formations.map(f => ({
+      ...f,
+      _type_label:    f.ejp_formations_pcnc ? `${f.ejp_formations_pcnc.code} — ${f.ejp_formations_pcnc.libelle || ''}` : (f.classe || '—'),
+      _enseignant_nom: f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}` : '—',
+      _total:          (f.nb_femme || 0) + (f.nb_homme || 0),
+      'promotions.nom': f.promotions?.nom || '—',
+    }))
+    exportExcel('Classes en cours', COLS_EXPORT_CLASSES, data, 'Classes')
+  }
+
+  const nbInscrits = (f: any) =>
+    (f.inscriptions_formation || []).filter((i: any) => i.statut !== 'abandonne').length
+
+  const paginatedClasses = formations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  // ── Formulaire partagé Ajouter / Modifier ────────────────────────────────
+  const ClasseForm = () => (
+    <div className="space-y-5">
+      {/* Section 1 — Identification */}
+      <div>
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Identification</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Promotion *</label>
+            <select className="input" value={form.promotion_id}
+              onChange={e => setForm((f: any) => ({ ...f, promotion_id: e.target.value }))}>
+              <option value="">— Sélectionner —</option>
+              {promotions.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Type de classe *</label>
+            <select className="input" value={form.formation_pcnc_id}
+              onChange={e => handleTypePcncChange(e.target.value)}>
+              <option value="">— Sélectionner —</option>
+              {typesPcnc.filter(t => t.actif).map(t => (
+                <option key={t.id} value={t.id}>{t.code}{t.libelle ? ` — ${t.libelle}` : ''}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Code classe (auto-généré)</label>
+            <input className="input bg-gray-50 font-mono text-xs" value={codePreview}
+              readOnly placeholder="Sélectionner type + promotion" />
+          </div>
+          <div>
+            <label className="label">Année</label>
+            <input type="number" className="input" value={form.annee} min={2020} max={2035}
+              onChange={e => setForm((f: any) => ({ ...f, annee: Number(e.target.value) }))} />
+          </div>
+          <div>
+            <label className="label">Nb séances total</label>
+            <input type="number" className="input" min={0} value={form.nb_seance}
+              onChange={e => setForm((f: any) => ({ ...f, nb_seance: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Nb séances obligatoires</label>
+            <input type="number" className="input" min={0} value={form.nb_seance_obligatoire}
+              onChange={e => setForm((f: any) => ({ ...f, nb_seance_obligatoire: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Date de création</label>
+            <input type="date" className="input" value={form.date_creation}
+              onChange={e => setForm((f: any) => ({ ...f, date_creation: e.target.value }))} />
+          </div>
+        </div>
+      </div>
+
+      {/* Section 2 — Encadrement */}
+      <div>
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Encadrement</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Enseignant</label>
+            <select className="input" value={form.enseignant_id}
+              onChange={e => setForm((f: any) => ({ ...f, enseignant_id: e.target.value }))}>
+              <option value="">— Sélectionner —</option>
+              {profils.referents.length > 0 && (
+                <optgroup label="── Référents ──">
+                  {profils.referents.map(p => (
+                    <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                  ))}
+                </optgroup>
+              )}
+              {profils.stars.length > 0 && (
+                <optgroup label="── Stars ──">
+                  {profils.stars.map(p => (
+                    <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+          <div>
+            <label className="label">Assistant</label>
+            <select className="input" value={form.assistant_id}
+              onChange={e => setForm((f: any) => ({ ...f, assistant_id: e.target.value }))}>
+              <option value="">— Sélectionner —</option>
+              {profils.referents.length > 0 && (
+                <optgroup label="── Référents ──">
+                  {profils.referents.map(p => (
+                    <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                  ))}
+                </optgroup>
+              )}
+              {profils.stars.length > 0 && (
+                <optgroup label="── Stars ──">
+                  {profils.stars.map(p => (
+                    <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Section 3 — Effectifs */}
+      <div>
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Effectifs</h4>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="label">Nombre de femmes</label>
+            <input type="number" className="input" min={0} value={form.nb_femme}
+              onChange={e => setForm((f: any) => ({ ...f, nb_femme: Number(e.target.value) }))} />
+          </div>
+          <div>
+            <label className="label">Nombre d'hommes</label>
+            <input type="number" className="input" min={0} value={form.nb_homme}
+              onChange={e => setForm((f: any) => ({ ...f, nb_homme: Number(e.target.value) }))} />
+          </div>
+          <div>
+            <label className="label">Total inscrits</label>
+            <input className="input bg-gray-50 font-semibold text-blue-700" readOnly
+              value={(Number(form.nb_femme) || 0) + (Number(form.nb_homme) || 0)} />
+          </div>
+        </div>
+      </div>
+
+      {/* Section 4 — Informations complémentaires */}
+      <div>
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Informations complémentaires</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Date de fin</label>
+            <input type="date" className="input" value={form.date_fin}
+              onChange={e => setForm((f: any) => ({ ...f, date_fin: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Examen prévu</label>
+            <select className="input" value={form.examen_prevu ? 'oui' : 'non'}
+              onChange={e => setForm((f: any) => ({ ...f, examen_prevu: e.target.value === 'oui' }))}>
+              <option value="non">Non</option>
+              <option value="oui">Oui</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Nombre de redoublants</label>
+            <input type="number" className="input" min={0} value={form.nb_redoublant}
+              onChange={e => setForm((f: any) => ({ ...f, nb_redoublant: Number(e.target.value) }))} />
+          </div>
+          <div>
+            <label className="label">Nombre d'abandons</label>
+            <input type="number" className="input" min={0} value={form.nb_abandon}
+              onChange={e => setForm((f: any) => ({ ...f, nb_abandon: Number(e.target.value) }))} />
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="label">Description</label>
+          <textarea className="input" rows={2} value={form.description}
+            onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} />
+        </div>
+        <div className="mt-4">
+          <label className="label">Clôture</label>
+          <select className="input" value={form.cloture ? 'oui' : 'non'}
+            onChange={e => setForm((f: any) => ({ ...f, cloture: e.target.value === 'oui' }))}>
+            <option value="non">Non — classe en cours</option>
+            <option value="oui">Oui — clôturer cette classe</option>
+          </select>
+          {form.cloture && (
+            <p className="mt-1 text-xs text-amber-600 bg-amber-50 rounded px-2 py-1">
+              ⚠️ Cette classe sera déplacée dans "Classes clôturées" après validation.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
   return (
-    <div className="card p-8 text-center text-gray-400">
-      <Clock size={36} className="mx-auto mb-3 text-gray-300" />
-      <p className="font-medium text-gray-500">Classes en cours</p>
-      <p className="text-xs mt-1 text-gray-400">Cette section sera disponible à l'étape suivante.</p>
+    <div className="space-y-4">
+      {/* Barre d'outils */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          {formations.length} classe{formations.length > 1 ? 's' : ''} en cours
+        </p>
+        <div className="flex items-center gap-2">
+          <button onClick={doExportExcel}
+            className="btn btn-secondary flex items-center gap-1.5 text-sm">
+            <Download size={15} /> Excel
+          </button>
+          {canCreate && (
+            <button onClick={openAdd}
+              className="btn btn-primary flex items-center gap-2">
+              <Plus size={16} /> Ajouter une classe
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Liste */}
+      {formations.length === 0 ? (
+        <EmptyState icon={GraduationCap} title="Aucune classe en cours"
+          description={canCreate ? 'Cliquez sur "Ajouter une classe" pour commencer' : undefined} />
+      ) : (
+        <div className="card overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Code</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Type PCNC</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Promotion</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Enseignant</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-600">Apprenants</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-600">Séances</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Date fin</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paginatedClasses.map(f => {
+                  const typePcnc = f.ejp_formations_pcnc
+                  const ensLabel = f.enseignant ? `${f.enseignant.prenom} ${f.enseignant.nom}` : '—'
+                  const total    = (f.nb_femme || 0) + (f.nb_homme || 0)
+                  return (
+                    <tr key={f.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-xs text-blue-700 font-bold">{f.code || '—'}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {typePcnc
+                          ? <span className="text-sm">
+                              <span className="font-semibold text-purple-700">{typePcnc.code}</span>
+                              {typePcnc.libelle && <span className="text-gray-500 ml-1 text-xs">— {typePcnc.libelle}</span>}
+                            </span>
+                          : <span className="text-gray-400 text-xs">{f.classe || '—'}</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">{f.promotions?.nom || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{ensLabel}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center gap-1 text-blue-700 font-medium">
+                          <Users size={13} /> {nbInscrits(f)}
+                          {total > 0 && <span className="text-xs text-gray-400 ml-1">({total})</span>}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {(f.nb_seance != null || typePcnc?.nb_seance != null)
+                          ? <span className="text-xs text-gray-600">
+                              {f.nb_seance ?? typePcnc?.nb_seance ?? '—'}
+                              {(f.nb_seance_obligatoire ?? typePcnc?.nb_seance_obligatoire) != null &&
+                                <span className="text-gray-400"> / {f.nb_seance_obligatoire ?? typePcnc?.nb_seance_obligatoire}</span>
+                              }
+                            </span>
+                          : <span className="text-gray-400">—</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{fmtDate(f.date_fin)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => { setViewItem(f); setViewModal(true) }}
+                            className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="Voir">
+                            <Eye size={15} />
+                          </button>
+                          {canEdit && (
+                            <button onClick={() => openEdit(f)}
+                              className="p-1.5 rounded hover:bg-amber-50 text-amber-600" title="Modifier">
+                              <Edit2 size={15} />
+                            </button>
+                          )}
+                          <button
+                            className="p-1.5 rounded hover:bg-green-50 text-green-600" title="Gérer apprenants"
+                            onClick={() => toast('Gestion apprenants — disponible à l\'étape suivante', { icon: '🔧' })}>
+                            <Users size={15} />
+                          </button>
+                          {canDelete && (
+                            <button onClick={() => setDeleteDialog(f)}
+                              className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Désactiver">
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pagination total={formations.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
+        </div>
+      )}
+
+      {/* Modal Ajouter */}
+      <Modal key={`add-${addModal}`} open={addModal} onClose={() => setAddModal(false)}
+        title="Nouvelle classe" size="xl">
+        <ClasseForm />
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+          <button onClick={() => setAddModal(false)} className="btn btn-secondary">Annuler</button>
+          <button onClick={() => doSave(false)} disabled={saving} className="btn btn-primary flex items-center gap-2">
+            {saving ? <><Loader size={14} className="animate-spin" /> Enregistrement...</> : <><Save size={14} /> Enregistrer</>}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal Modifier */}
+      <Modal key={`edit-${editItem?.id}`} open={editModal} onClose={() => setEditModal(false)}
+        title={`Modifier — ${editItem?.code || ''}`} size="xl">
+        <ClasseForm />
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+          <button onClick={() => setEditModal(false)} className="btn btn-secondary">Annuler</button>
+          <button onClick={() => doSave(true)} disabled={saving} className="btn btn-primary flex items-center gap-2">
+            {saving ? <><Loader size={14} className="animate-spin" /> Enregistrement...</> : <><Save size={14} /> Mettre à jour</>}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal Voir */}
+      <Modal open={viewModal} onClose={() => setViewModal(false)}
+        title={`Classe — ${viewItem?.code || '—'}`} size="xl">
+        {viewItem && (
+          <div className="space-y-5 text-sm">
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Identification</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ['Code',            viewItem.code || '—'],
+                  ['Promotion',       viewItem.promotions?.nom || '—'],
+                  ['Type PCNC',       viewItem.ejp_formations_pcnc ? `${viewItem.ejp_formations_pcnc.code}${viewItem.ejp_formations_pcnc.libelle ? ' — ' + viewItem.ejp_formations_pcnc.libelle : ''}` : (viewItem.classe || '—')],
+                  ['Année',           String(viewItem.annee || '—')],
+                  ['Nb séances',      String(viewItem.nb_seance ?? '—')],
+                  ['Nb séances oblig.', String(viewItem.nb_seance_obligatoire ?? '—')],
+                  ['Date création',   fmtDate(viewItem.date_creation)],
+                ].map(([l, v]) => (
+                  <div key={l}><p className="text-xs text-gray-400">{l}</p><p className="font-medium">{v}</p></div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Encadrement</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="text-xs text-gray-400">Enseignant</p><p className="font-medium">{viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—'}</p></div>
+                <div><p className="text-xs text-gray-400">Assistant</p><p className="font-medium">{viewItem.assistant ? `${viewItem.assistant.prenom} ${viewItem.assistant.nom}` : '—'}</p></div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Effectifs</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div><p className="text-xs text-gray-400">Femmes</p><p className="font-medium">{viewItem.nb_femme ?? 0}</p></div>
+                <div><p className="text-xs text-gray-400">Hommes</p><p className="font-medium">{viewItem.nb_homme ?? 0}</p></div>
+                <div><p className="text-xs text-gray-400">Total</p><p className="font-bold text-blue-700">{(viewItem.nb_femme || 0) + (viewItem.nb_homme || 0)}</p></div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Informations complémentaires</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ['Date de fin',     fmtDate(viewItem.date_fin)],
+                  ['Examen prévu',    viewItem.examen_prevu ? 'Oui' : 'Non'],
+                  ['Redoublants',     String(viewItem.nb_redoublant ?? 0)],
+                  ['Abandons',        String(viewItem.nb_abandon ?? 0)],
+                ].map(([l, v]) => (
+                  <div key={l}><p className="text-xs text-gray-400">{l}</p><p className="font-medium">{v}</p></div>
+                ))}
+              </div>
+              {viewItem.description && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400">Description</p>
+                  <p className="mt-1 bg-gray-50 rounded p-2 text-gray-700">{viewItem.description}</p>
+                </div>
+              )}
+            </div>
+            {/* Apprenants inscrits */}
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Apprenants inscrits</h4>
+              {(viewItem.inscriptions_formation || []).filter((i: any) => i.statut !== 'abandonne').length === 0
+                ? <p className="text-xs text-gray-400">Aucun apprenant inscrit</p>
+                : <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {(viewItem.inscriptions_formation || []).filter((i: any) => i.statut !== 'abandonne').map((i: any) => (
+                      <div key={i.id} className="flex items-center gap-2 py-1 border-b border-gray-50">
+                        <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">{i.statut}</span>
+                      </div>
+                    ))}
+                  </div>
+              }
+            </div>
+          </div>
+        )}
+        <div className="flex justify-end mt-4">
+          <button onClick={() => setViewModal(false)} className="btn btn-secondary">Fermer</button>
+        </div>
+      </Modal>
+
+      {/* Confirm désactivation */}
+      <ConfirmDialog
+        open={!!deleteDialog} onClose={() => setDeleteDialog(null)} onConfirm={doDelete}
+        title="Désactiver la classe"
+        message={`Désactiver la classe "${deleteDialog?.code}" ?`}
+        confirmLabel="Désactiver" danger={true}
+      />
     </div>
   )
 }
 
 // =========================================================================
-// ONGLET 4 — CLASSES CLÔTURÉES (placeholder étape 2 → développé étape 5)
+// ONGLET 4 — CLASSES CLÔTURÉES (placeholder → développé étape 5)
 // =========================================================================
 function ClassesCloatureesTab({
   formations, onRefresh
@@ -504,7 +1088,7 @@ function ClassesCloatureesTab({
     <div className="card p-8 text-center text-gray-400">
       <Lock size={36} className="mx-auto mb-3 text-gray-300" />
       <p className="font-medium text-gray-500">Classes clôturées</p>
-      <p className="text-xs mt-1 text-gray-400">Cette section sera disponible prochainement.</p>
+      <p className="text-xs mt-1 text-gray-400">Cette section sera disponible à l'étape suivante.</p>
     </div>
   )
 }
