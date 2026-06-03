@@ -633,7 +633,7 @@ function EJPListesTab() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
-  const [form, setForm] = useState({ nom: '', code: '', libelle: '' })
+  const [form, setForm] = useState({ nom: '', code: '', libelle: '', nb_seance: '', nb_seance_obligatoire: '' })
   const [saving, setSaving] = useState(false)
   const [confirmToggle, setConfirmToggle] = useState<any>(null)
 
@@ -650,13 +650,19 @@ function EJPListesTab() {
 
   const openAdd = () => {
     setEditItem(null)
-    setForm({ nom: '', code: '', libelle: '' })
+    setForm({ nom: '', code: '', libelle: '', nb_seance: '', nb_seance_obligatoire: '' })
     setModal(true)
   }
 
   const openEdit = (item: any) => {
     setEditItem(item)
-    setForm({ nom: item.nom || '', code: item.code || '', libelle: item.libelle || '' })
+    setForm({
+      nom: item.nom || '',
+      code: item.code || '',
+      libelle: item.libelle || '',
+      nb_seance: item.nb_seance != null ? String(item.nb_seance) : '',
+      nb_seance_obligatoire: item.nb_seance_obligatoire != null ? String(item.nb_seance_obligatoire) : '',
+    })
     setModal(true)
   }
 
@@ -667,7 +673,12 @@ function EJPListesTab() {
     setSaving(true)
     try {
       const payload = isPCNC
-        ? { code: form.code.trim(), libelle: form.libelle.trim() || null }
+        ? {
+            code: form.code.trim(),
+            libelle: form.libelle.trim() || null,
+            nb_seance: form.nb_seance !== '' ? parseInt(form.nb_seance, 10) : null,
+            nb_seance_obligatoire: form.nb_seance_obligatoire !== '' ? parseInt(form.nb_seance_obligatoire, 10) : null,
+          }
         : { nom: form.nom.trim() }
 
       if (editItem) {
@@ -739,6 +750,13 @@ function EJPListesTab() {
                     <>
                       <span className={`font-mono font-semibold ${item.actif ? 'text-purple-700' : 'text-slate-400'}`}>{item.code}</span>
                       {item.libelle && <span className={`text-sm ${item.actif ? 'text-slate-600' : 'text-slate-400'}`}>— {item.libelle}</span>}
+                      {(item.nb_seance != null || item.nb_seance_obligatoire != null) && (
+                        <span className="text-xs text-slate-400 ml-2">
+                          ({item.nb_seance != null ? `${item.nb_seance} séance${item.nb_seance > 1 ? 's' : ''}` : ''}
+                          {item.nb_seance != null && item.nb_seance_obligatoire != null ? ', ' : ''}
+                          {item.nb_seance_obligatoire != null ? `${item.nb_seance_obligatoire} oblig.` : ''})
+                        </span>
+                      )}
                     </>
                   ) : (
                     <span className={`font-medium ${item.actif ? 'text-slate-800' : 'text-slate-400 line-through'}`}>{item.nom}</span>
@@ -789,6 +807,30 @@ function EJPListesTab() {
               <div>
                 <label className="label">Libellé (optionnel)</label>
                 <input className="input" value={form.libelle} onChange={e => setForm(f => ({ ...f, libelle: e.target.value }))} placeholder="Description de la formation" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Nb séances total</label>
+                  <input
+                    type="number"
+                    min={0}
+                    className="input"
+                    value={form.nb_seance}
+                    onChange={e => setForm(f => ({ ...f, nb_seance: e.target.value }))}
+                    placeholder="Ex: 12"
+                  />
+                </div>
+                <div>
+                  <label className="label">Nb séances obligatoires</label>
+                  <input
+                    type="number"
+                    min={0}
+                    className="input"
+                    value={form.nb_seance_obligatoire}
+                    onChange={e => setForm(f => ({ ...f, nb_seance_obligatoire: e.target.value }))}
+                    placeholder="Ex: 10"
+                  />
+                </div>
               </div>
             </>
           ) : (
