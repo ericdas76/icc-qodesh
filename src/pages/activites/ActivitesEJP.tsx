@@ -307,7 +307,7 @@ function MembresEJPTab() {
       )}
 
       {/* Modal Vue */}
-      <Modal isOpen={viewModal} onClose={() => setViewModal(false)} title={`Fiche — ${viewItem?.prenom} ${viewItem?.nom}`} size="lg">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title={`Fiche — ${viewItem?.prenom} ${viewItem?.nom}`} size="lg">
         {viewItem && (
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-3">
@@ -338,7 +338,7 @@ function MembresEJPTab() {
       </Modal>
 
       {/* Modal Formulaire */}
-      <Modal isOpen={modal} onClose={() => setModal(false)} title={editItem ? `Modifier — ${editItem.prenom} ${editItem.nom}` : 'Nouveau membre EJP'} size="xl">
+      <Modal open={modal} onClose={() => setModal(false)} title={editItem ? `Modifier — ${editItem.prenom} ${editItem.nom}` : 'Nouveau membre EJP'} size="xl">
         <div className="space-y-5">
           {/* Identité */}
           <div>
@@ -460,13 +460,13 @@ function MembresEJPTab() {
 
       {/* Confirm désactivation */}
       <ConfirmDialog
-        isOpen={!!confirmDesactiver}
+        open={!!confirmDesactiver}
         onClose={() => setConfirmDesactiver(null)}
         onConfirm={() => confirmDesactiver && toggleActif(confirmDesactiver)}
         title="Désactiver le membre ?"
         message={`Voulez-vous désactiver ${confirmDesactiver?.prenom} ${confirmDesactiver?.nom} ?`}
         confirmLabel="Désactiver"
-        variant="danger"
+        danger={true}
       />
     </div>
   )
@@ -751,7 +751,7 @@ function ActivitesEJPTab() {
       )}
 
       {/* Modal Vue activité */}
-      <Modal isOpen={viewModal} onClose={() => setViewModal(false)} title={`Activité — ${viewItem?.code_activite}`} size="lg">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title={`Activité — ${viewItem?.code_activite}`} size="lg">
         {viewItem && (
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-3">
@@ -790,7 +790,7 @@ function ActivitesEJPTab() {
       </Modal>
 
       {/* Modal Formulaire activité */}
-      <Modal isOpen={modal} onClose={() => setModal(false)} title={editItem ? `Modifier activité — ${editItem.code_activite}` : 'Nouvelle activité EJP'} size="xl">
+      <Modal open={modal} onClose={() => setModal(false)} title={editItem ? `Modifier activité — ${editItem.code_activite}` : 'Nouvelle activité EJP'} size="xl">
         <div className="space-y-5">
           {/* Informations générales */}
           <div>
@@ -901,13 +901,13 @@ function ActivitesEJPTab() {
 
       {/* Confirm suppression */}
       <ConfirmDialog
-        isOpen={!!confirmDelete}
+        open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
         onConfirm={() => confirmDelete && doDelete(confirmDelete)}
         title="Supprimer l'activité ?"
         message={`Supprimer l'activité ${confirmDelete?.code_activite} ? Cette action est irréversible.`}
         confirmLabel="Supprimer"
-        variant="danger"
+        danger={true}
       />
     </div>
   )

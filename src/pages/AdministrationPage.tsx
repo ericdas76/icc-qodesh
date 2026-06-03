@@ -773,7 +773,7 @@ function EJPListesTab() {
 
       {/* Modal */}
       <Modal
-        isOpen={modal}
+        open={modal}
         onClose={() => setModal(false)}
         title={editItem ? `Modifier — ${editItem.nom || editItem.code}` : `Nouvelle entrée — ${currentSection.label}`}
         size="sm"
@@ -807,13 +807,13 @@ function EJPListesTab() {
 
       {/* Confirm désactivation */}
       <ConfirmDialog
-        isOpen={!!confirmToggle}
+        open={!!confirmToggle}
         onClose={() => setConfirmToggle(null)}
         onConfirm={() => confirmToggle && toggleActif(confirmToggle)}
         title="Désactiver l'entrée ?"
         message={`Désactiver "${confirmToggle?.nom || confirmToggle?.code}" ?`}
         confirmLabel="Désactiver"
-        variant="danger"
+        danger={true}
       />
     </div>
   )
