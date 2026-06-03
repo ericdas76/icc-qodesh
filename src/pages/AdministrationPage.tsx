@@ -61,6 +61,9 @@ function UtilisateursTab() {
   const [profils, setProfils] = useState<any[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
+  const [editProfil, setEditProfil] = useState<any | null>(null)
+  const [editForm, setEditForm] = useState({ prenom: '', nom: '' })
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => { fetchData() }, [])
 
@@ -87,13 +90,41 @@ function UtilisateursTab() {
     fetchData()
   }
 
+  const openEdit = (p: any) => {
+    setEditProfil(p)
+    setEditForm({ prenom: p.prenom || '', nom: p.nom || '' })
+  }
+
+  const saveEdit = async () => {
+    if (!editForm.prenom.trim() && !editForm.nom.trim()) {
+      toast.error('Au moins un champ requis')
+      return
+    }
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('profils')
+        .update({ prenom: editForm.prenom.trim(), nom: editForm.nom.trim().toUpperCase() })
+        .eq('id', editProfil.id)
+      if (error) throw error
+      toast.success('Nom modifié avec succès')
+      await logEvent('administration', 'modification', `Nom/prénom utilisateur modifié : ${editForm.prenom} ${editForm.nom}`)
+      setEditProfil(null)
+      fetchData()
+    } catch (e: any) {
+      toast.error('Erreur : ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) return <div className="flex items-center justify-center h-48"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700" /></div>
 
   return (
+    <>
     <div className="card overflow-hidden">
       <div className="p-4 border-b">
         <h3 className="font-semibold text-slate-700">Utilisateurs ({profils.length})</h3>
-        <p className="text-xs text-slate-400 mt-0.5">Les comptes sont créés via Supabase Auth. Assignez ici les rôles.</p>
+        <p className="text-xs text-slate-400 mt-0.5">Les comptes sont créés via Supabase Auth. Assignez ici les rôles et modifiez les noms.</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -125,9 +156,14 @@ function UtilisateursTab() {
                 </td>
                 <td className="px-4 py-2 text-slate-400 text-xs">{format(new Date(p.created_at), 'd MMM yyyy', { locale: fr })}</td>
                 <td className="px-4 py-2">
-                  <button onClick={() => toggleActif(p.id, p.actif)} className={`text-xs px-2 py-1 rounded ${p.actif ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
-                    {p.actif ? 'Désactiver' : 'Activer'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => openEdit(p)} className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center gap-1">
+                      <Edit size={11} /> Modifier
+                    </button>
+                    <button onClick={() => toggleActif(p.id, p.actif)} className={`text-xs px-2 py-1 rounded ${p.actif ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
+                      {p.actif ? 'Désactiver' : 'Activer'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -135,6 +171,43 @@ function UtilisateursTab() {
         </table>
       </div>
     </div>
+
+    {/* Modal édition Prénom / Nom */}
+    <Modal isOpen={!!editProfil} onClose={() => setEditProfil(null)} title="Modifier l'utilisateur" size="sm">
+      {editProfil && (
+        <div className="space-y-4">
+          <p className="text-xs text-slate-400">Email : <span className="font-medium text-slate-600">{editProfil.email}</span></p>
+          <div>
+            <label className="label">Prénom</label>
+            <input
+              className="input"
+              value={editForm.prenom}
+              onChange={e => setEditForm(f => ({ ...f, prenom: e.target.value }))}
+              placeholder="Prénom"
+              autoFocus
+              onKeyDown={e => e.key === 'Enter' && saveEdit()}
+            />
+          </div>
+          <div>
+            <label className="label">Nom</label>
+            <input
+              className="input uppercase"
+              value={editForm.nom}
+              onChange={e => setEditForm(f => ({ ...f, nom: e.target.value }))}
+              placeholder="NOM"
+              onKeyDown={e => e.key === 'Enter' && saveEdit()}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setEditProfil(null)} className="btn-secondary" disabled={saving}>Annuler</button>
+            <button onClick={saveEdit} className="btn-primary flex items-center gap-2" disabled={saving}>
+              {saving ? <><Loader size={14} className="animate-spin" /> Enregistrement…</> : <><Save size={14} /> Enregistrer</>}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
+    </>
   )
 }
 
