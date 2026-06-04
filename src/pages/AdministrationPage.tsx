@@ -102,14 +102,10 @@ function UtilisateursTab() {
     }
     setSaving(true)
     try {
-      const { error, count } = await supabase.from('profils')
+      const { error } = await supabase.from('profils')
         .update({ prenom: editForm.prenom.trim(), nom: editForm.nom.trim().toUpperCase() })
         .eq('id', editProfil.id)
-        .select()
       if (error) throw error
-      if (!count || count === 0) {
-        throw new Error('Modification bloquée par les permissions (RLS). Contactez l\'administrateur système.')
-      }
       // Mise à jour locale immédiate pour éviter le bug d'affichage
       setProfils(prev => prev.map(u =>
         u.id === editProfil.id
