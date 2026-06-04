@@ -1,11 +1,9 @@
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url)
-    try {
-      const asset = await env.ASSETS.fetch(request)
-      if (asset.status !== 404) return asset
-    } catch {}
-    const indexUrl = new URL('/', url.origin)
-    return env.ASSETS.fetch(new Request(indexUrl.toString(), request))
+    const url = new URL(request.url);
+    const assetResponse = await env.ASSETS.fetch(request);
+    if (assetResponse.status !== 404) return assetResponse;
+    const indexRequest = new Request(new URL('/index.html', request.url), request);
+    return env.ASSETS.fetch(indexRequest);
   }
 }
