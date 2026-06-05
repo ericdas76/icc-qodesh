@@ -213,18 +213,24 @@ export default function MembresPage() {
     return `ICC-${annee}-${seq}`
   }
 
-  // Filtrage + pagination
-  const filtered = membres.filter(m => {
-    const s = search.toLowerCase()
-    const p = m.personnes || {}
-    const matchSearch = !search ||
-      (p.nom || '').toLowerCase().includes(s) ||
-      (p.prenom || '').toLowerCase().includes(s) ||
-      (p.telephone || '').includes(s) ||
-      (m.numero_membre || '').toLowerCase().includes(s)
-    const matchCategorie = !filterCategorie || m.categorie === filterCategorie
-    return matchSearch && matchCategorie
-  })
+  // Filtrage + tri alpha par Nom + pagination
+  const filtered = membres
+    .filter(m => {
+      const s = search.toLowerCase()
+      const p = m.personnes || {}
+      const matchSearch = !search ||
+        (p.nom || '').toLowerCase().includes(s) ||
+        (p.prenom || '').toLowerCase().includes(s) ||
+        (p.telephone || '').includes(s) ||
+        (m.numero_membre || '').toLowerCase().includes(s)
+      const matchCategorie = !filterCategorie || m.categorie === filterCategorie
+      return matchSearch && matchCategorie
+    })
+    .sort((a, b) => {
+      const nomA = (a.personnes?.nom || '').toUpperCase()
+      const nomB = (b.personnes?.nom || '').toUpperCase()
+      return nomA.localeCompare(nomB, 'fr')
+    })
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   // Reset page si filtre change
@@ -380,7 +386,8 @@ export default function MembresPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">N° Membre</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Nom complet</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Nom</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600">Prénom</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Catégorie</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Origine</th>
@@ -393,7 +400,8 @@ export default function MembresPage() {
                   {paginated.map(m => (
                     <tr key={m.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 font-mono text-xs text-blue-700">{m.numero_membre || '—'}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{m.personnes?.prenom} {m.personnes?.nom}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{m.personnes?.nom || '—'}</td>
+                      <td className="px-4 py-3 text-gray-700">{m.personnes?.prenom || '—'}</td>
                       <td className="px-4 py-3 text-gray-600">{m.personnes?.telephone || '—'}</td>
                       <td className="px-4 py-3 text-gray-600">{m.categorie || '—'}</td>
                       <td className="px-4 py-3 text-gray-600">{m.personnes?.origine || '—'}</td>

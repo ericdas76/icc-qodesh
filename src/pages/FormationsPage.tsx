@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Plus, Eye, Edit2, Trash2, BookOpen, Users,
-  GraduationCap, Lock, List, Download, Save, Loader, Unlock
+  GraduationCap, Lock, List, Download, Save, Loader, Unlock, CalendarDays
 } from 'lucide-react'
+import SeancesModal from '../components/SeancesModal'
 import { exportExcel } from '../lib/export'
 import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
@@ -534,6 +535,9 @@ function ClassesEnCoursTab({
   // Modal apprenants
   const [apprenantClasse, setApprenantClasse] = useState<any>(null)
   const [apprenantModal,  setApprenantModal]  = useState(false)
+  // Modal séances
+  const [seanceClasse, setSeanceClasse]       = useState<any>(null)
+  const [seanceModal, setSeanceModal]         = useState(false)
 
 
 
@@ -906,6 +910,11 @@ function ClassesEnCoursTab({
                             onClick={() => { setApprenantClasse(f); setApprenantModal(true) }}>
                             <Users size={15} />
                           </button>
+                          <button
+                            className="p-1.5 rounded hover:bg-purple-50 text-purple-600" title="Séances"
+                            onClick={() => { setSeanceClasse(f); setSeanceModal(true) }}>
+                            <CalendarDays size={15} />
+                          </button>
                           {canDelete && (
                             <button onClick={() => setDeleteDialog(f)}
                               className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Désactiver">
@@ -1033,6 +1042,13 @@ function ClassesEnCoursTab({
           onRefresh={() => { setApprenantModal(false); setApprenantClasse(null); onRefresh() }}
         />
       )}
+
+      {/* Modal Séances */}
+      <SeancesModal
+        classe={seanceClasse}
+        isOpen={seanceModal}
+        onClose={() => { setSeanceModal(false); setSeanceClasse(null) }}
+      />
 
       {/* Confirm désactivation */}
       <ConfirmDialog

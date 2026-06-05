@@ -69,7 +69,7 @@ function UtilisateursTab() {
 
   const fetchData = async () => {
     const [{ data: p }, { data: r }] = await Promise.all([
-      supabase.from('profils').select('*, roles(nom)').order('nom'),
+      supabase.from('profils').select('*, roles(nom)').order('email'),  // tri stable par email
       supabase.from('roles').select('*').order('nom')
     ])
     setProfils(p || [])
@@ -106,6 +106,12 @@ function UtilisateursTab() {
         .update({ prenom: editForm.prenom.trim(), nom: editForm.nom.trim().toUpperCase() })
         .eq('id', editProfil.id)
       if (error) throw error
+      // Mise à jour locale immédiate pour éviter le bug d'affichage
+      setProfils(prev => prev.map(u =>
+        u.id === editProfil.id
+          ? { ...u, prenom: editForm.prenom.trim(), nom: editForm.nom.trim().toUpperCase() }
+          : u
+      ))
       toast.success('Nom modifié avec succès')
       await logEvent('administration', 'modification', `Nom/prénom utilisateur modifié : ${editForm.prenom} ${editForm.nom}`)
       setEditProfil(null)
