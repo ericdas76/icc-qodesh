@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, Personne } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users, Upload } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users, Upload, Phone, Mail, Briefcase, Globe, MapPin, Heart, Calendar, BookOpen } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -505,47 +505,85 @@ export default function PersonnesPage() {
       </Modal>
 
       {/* Modal Visualiser */}
-      <Modal isOpen={viewModal} onClose={() => setViewModal(false)} title={`Fiche — ${viewItem?.prenom} ${viewItem?.nom}`} size="lg">
+      <Modal isOpen={viewModal} onClose={() => setViewModal(false)} title="" size="lg">
         {viewItem && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {[
-                ['Nom complet', `${viewItem.prenom} ${viewItem.nom}`],
-                ['Sexe', viewItem.sexe === 'M' ? 'Homme' : viewItem.sexe === 'F' ? 'Femme' : '—'],
-                ['Date naissance', viewItem.date_naissance ? format(new Date(viewItem.date_naissance), 'dd MMMM yyyy', { locale: fr }) : '—'],
-                ['Lieu naissance', viewItem.lieu_naissance || '—'],
-                ['Téléphone', viewItem.telephone || '—'],
-                ['Email', viewItem.email || '—'],
-                ['Profession', viewItem.profession || '—'],
-                ['Situation familiale', viewItem.situation_familiale || '—'],
-                ["Nombre d'enfants", String(viewItem.nombre_enfants)],
-                ['Nationalité', viewItem.nationalite],
-                ['Origine', viewItem.origine || '—'],
-                ['Adresse', viewItem.adresse || '—'],
-                ['Quartier', viewItem.quartier || '—'],
-                ['Source contact', viewItem.source_contact || '—'],
-                ['1er contact', viewItem.date_premier_contact ? format(new Date(viewItem.date_premier_contact), 'dd MMMM yyyy', { locale: fr }) : '—'],
-              ].map(([label, val]) => (
-                <div key={label}>
-                  <p className="text-xs text-gray-500 font-medium">{label}</p>
-                  <p className="text-gray-900">{val}</p>
+          <div className="-m-4 -mt-4">
+            {/* En-tête vert/emerald */}
+            <div className="bg-gradient-to-r from-emerald-600 to-green-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xl font-bold text-white shrink-0">
+                  {viewItem.prenom?.[0]?.toUpperCase()}{viewItem.nom?.[0]?.toUpperCase()}
                 </div>
-              ))}
+                <div>
+                  <h2 className="text-xl font-bold text-white">{viewItem.prenom} {viewItem.nom}</h2>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {viewItem.sexe && <span className="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full">{viewItem.sexe === 'M' ? 'Homme' : viewItem.sexe === 'F' ? 'Femme' : viewItem.sexe}</span>}
+                    {viewItem.nationalite && <span className="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full flex items-center gap-1"><Globe size={10}/> {viewItem.nationalite}</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Section Identité */}
+            <div className="px-5 pt-4 pb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5"><BookOpen size={11}/> Identité</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Date naissance', val: viewItem.date_naissance ? format(new Date(viewItem.date_naissance), 'dd MMMM yyyy', { locale: fr }) : '—' },
+                  { label: 'Lieu naissance', val: viewItem.lieu_naissance || '—' },
+                  { label: 'Situation familiale', val: viewItem.situation_familiale || '—' },
+                  { label: "Nb enfants", val: String(viewItem.nombre_enfants ?? '—') },
+                  { label: 'Origine', val: viewItem.origine || '—' },
+                  { label: 'Source contact', val: viewItem.source_contact || '—' },
+                ].map(({ label, val }) => (
+                  <div key={label} className="bg-emerald-50 rounded-xl px-3 py-2.5">
+                    <p className="text-xs text-emerald-400 font-medium mb-0.5">{label}</p>
+                    <p className="font-semibold text-emerald-900 text-sm">{val}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Section Contact */}
+            <div className="px-5 pb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Phone size={11}/> Contact & Localisation</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-green-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                  <Phone size={13} className="text-green-400 mt-0.5 shrink-0"/>
+                  <div><p className="text-xs text-green-500 font-medium">Téléphone</p><p className="font-semibold text-green-900 text-sm">{viewItem.telephone || '—'}</p></div>
+                </div>
+                <div className="bg-green-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                  <Mail size={13} className="text-green-400 mt-0.5 shrink-0"/>
+                  <div><p className="text-xs text-green-500 font-medium">Email</p><p className="font-semibold text-green-900 text-sm break-all">{viewItem.email || '—'}</p></div>
+                </div>
+                <div className="bg-green-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                  <Briefcase size={13} className="text-green-400 mt-0.5 shrink-0"/>
+                  <div><p className="text-xs text-green-500 font-medium">Profession</p><p className="font-semibold text-green-900 text-sm">{viewItem.profession || '—'}</p></div>
+                </div>
+                <div className="bg-green-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                  <MapPin size={13} className="text-green-400 mt-0.5 shrink-0"/>
+                  <div><p className="text-xs text-green-500 font-medium">Quartier</p><p className="font-semibold text-green-900 text-sm">{viewItem.quartier || '—'}</p></div>
+                </div>
+                {viewItem.adresse && (
+                  <div className="bg-green-50 rounded-xl px-3 py-2.5 col-span-2 flex items-start gap-2">
+                    <MapPin size={13} className="text-green-400 mt-0.5 shrink-0"/>
+                    <div><p className="text-xs text-green-500 font-medium">Adresse</p><p className="font-semibold text-green-900 text-sm">{viewItem.adresse}</p></div>
+                  </div>
+                )}
+              </div>
             </div>
             {viewItem.notes && (
-              <div>
-                <p className="text-xs text-gray-500 font-medium">Notes</p>
-                <p className="text-gray-700 bg-gray-50 p-3 rounded text-sm">{viewItem.notes}</p>
+              <div className="px-5 pb-3">
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium mb-1">Notes</p>
+                  <p className="text-gray-700 text-sm">{viewItem.notes}</p>
+                </div>
               </div>
             )}
-            <div className="text-xs text-gray-400 border-t pt-3">
-              Créé le {format(new Date(viewItem.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
+            <div className="px-5 pb-4 flex items-center justify-between border-t border-gray-100 pt-3">
+              <p className="text-xs text-gray-400">Créé le {format(new Date(viewItem.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}</p>
+              <button onClick={() => setViewModal(false)} className="btn-secondary text-sm">Fermer</button>
             </div>
           </div>
         )}
-        <div className="flex justify-end mt-4">
-          <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
-        </div>
       </Modal>
 
       {/* Modal Import Excel */}

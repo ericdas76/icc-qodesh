@@ -352,49 +352,59 @@ function PromotionsTab({
       </Modal>
 
       {/* Modal Voir */}
-      <Modal open={viewModal} onClose={() => setViewModal(false)}
-        title={`Promotion — ${viewItem?.nom}`} size="md">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title="" size="md">
         {viewItem && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <div><p className="text-xs text-gray-500">Nom</p><p className="font-medium">{viewItem.nom}</p></div>
-              <div>
-                <p className="text-xs text-gray-500">Date</p>
-                <p>{viewItem.date_promotion
-                  ? format(new Date(viewItem.date_promotion), 'dd MMMM yyyy', { locale: fr })
-                  : '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Classes associées</p>
-                <p>{formations.filter(f => f.promotion_id === viewItem.id).length}</p>
+          <div className="-m-4 -mt-4">
+            {/* En-tête violet */}
+            <div className="bg-gradient-to-r from-violet-600 to-purple-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <GraduationCap size={22} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">{viewItem.nom}</h2>
+                  {viewItem.date_promotion && (
+                    <p className="text-white/80 text-sm mt-0.5">
+                      {format(new Date(viewItem.date_promotion), 'dd MMMM yyyy', { locale: fr })}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="pt-2">
-              <p className="text-xs text-gray-500 font-medium mb-2">Classes</p>
-              <div className="space-y-1">
-                {formations.filter(f => f.promotion_id === viewItem.id).map(f => (
-                  <div key={f.id} className="flex items-center gap-2 text-sm py-1 border-b border-gray-50">
-                    <span className="font-mono text-blue-700 text-xs">{f.code || '—'}</span>
-                    <span className="text-gray-600">
-                      {f.ejp_formations_pcnc?.code
-                        ? `${f.ejp_formations_pcnc.code} — ${f.ejp_formations_pcnc.libelle || ''}`
-                        : f.classe || '—'}
-                    </span>
-                    {f.cloture && (
-                      <span className="text-xs bg-gray-100 text-gray-500 rounded px-1.5">Clôturée</span>
-                    )}
-                  </div>
-                ))}
-                {formations.filter(f => f.promotion_id === viewItem.id).length === 0 && (
-                  <p className="text-xs text-gray-400">Aucune classe</p>
-                )}
+            {/* Stats */}
+            <div className="px-5 pt-4 pb-3">
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="bg-violet-50 rounded-xl px-3 py-2.5 text-center">
+                  <p className="text-2xl font-bold text-violet-700">{formations.filter(f => f.promotion_id === viewItem.id).length}</p>
+                  <p className="text-xs text-violet-400 font-medium">Classes associées</p>
+                </div>
+                <div className="bg-violet-50 rounded-xl px-3 py-2.5 text-center">
+                  <p className="text-2xl font-bold text-violet-700">{formations.filter(f => f.promotion_id === viewItem.id && !f.cloture).length}</p>
+                  <p className="text-xs text-violet-400 font-medium">En cours</p>
+                </div>
               </div>
+              {/* Liste classes */}
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Classes</p>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {formations.filter(f => f.promotion_id === viewItem.id).length === 0
+                  ? <p className="text-xs text-gray-400 py-2">Aucune classe</p>
+                  : formations.filter(f => f.promotion_id === viewItem.id).map(f => (
+                    <div key={f.id} className="flex items-center gap-2 text-sm py-1.5 px-2 rounded-lg bg-gray-50">
+                      <span className="font-mono text-violet-700 text-xs font-bold">{f.code || '—'}</span>
+                      <span className="text-gray-600 flex-1">
+                        {f.ejp_formations_pcnc?.code ? `${f.ejp_formations_pcnc.code} — ${f.ejp_formations_pcnc.libelle || ''}` : f.classe || '—'}
+                      </span>
+                      {f.cloture && <span className="text-xs bg-gray-200 text-gray-500 rounded px-1.5 py-0.5">Clôturée</span>}
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+            <div className="px-5 pb-4 flex justify-end border-t border-gray-100 pt-3">
+              <button onClick={() => setViewModal(false)} className="btn btn-secondary text-sm">Fermer</button>
             </div>
           </div>
         )}
-        <div className="flex justify-end mt-4">
-          <button onClick={() => setViewModal(false)} className="btn btn-secondary">Fermer</button>
-        </div>
       </Modal>
 
       {/* Confirm désactivation */}
@@ -960,80 +970,82 @@ function ClassesEnCoursTab({
       </Modal>
 
       {/* Modal Voir */}
-      <Modal open={viewModal} onClose={() => setViewModal(false)}
-        title={`Classe — ${viewItem?.code || '—'}`} size="xl">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title="" size="xl">
         {viewItem && (
-          <div className="space-y-5 text-sm">
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Identification</h4>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  ['Code',            viewItem.code || '—'],
-                  ['Promotion',       viewItem.promotions?.nom || '—'],
-                  ['Type PCNC',       viewItem.ejp_formations_pcnc ? `${viewItem.ejp_formations_pcnc.code}${viewItem.ejp_formations_pcnc.libelle ? ' — ' + viewItem.ejp_formations_pcnc.libelle : ''}` : (viewItem.classe || '—')],
-                  ['Année',           String(viewItem.annee || '—')],
-                  ['Nb séances',      String(viewItem.nb_seance ?? '—')],
-                  ['Nb séances oblig.', String(viewItem.nb_seance_obligatoire ?? '—')],
-                  ['Date création',   fmtDate(viewItem.date_creation)],
-                ].map(([l, v]) => (
-                  <div key={l}><p className="text-xs text-gray-400">{l}</p><p className="font-medium">{v}</p></div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Encadrement</h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div><p className="text-xs text-gray-400">Enseignant</p><p className="font-medium">{viewItem.enseignant_nom || (viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—')}</p></div>
-                <div><p className="text-xs text-gray-400">Assistant</p><p className="font-medium">{viewItem.assistant_nom  || (viewItem.assistant  ? `${viewItem.assistant.prenom}  ${viewItem.assistant.nom}`  : '—')}</p></div>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Effectifs</h4>
-              <div className="grid grid-cols-3 gap-3">
-                <div><p className="text-xs text-gray-400">Femmes</p><p className="font-medium">{viewItem.nb_femme ?? 0}</p></div>
-                <div><p className="text-xs text-gray-400">Hommes</p><p className="font-medium">{viewItem.nb_homme ?? 0}</p></div>
-                <div><p className="text-xs text-gray-400">Total</p><p className="font-bold text-blue-700">{(viewItem.nb_femme || 0) + (viewItem.nb_homme || 0)}</p></div>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Informations complémentaires</h4>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  ['Date de fin',     fmtDate(viewItem.date_fin)],
-                  ['Examen prévu',    viewItem.examen_prevu ? 'Oui' : 'Non'],
-                  ['Redoublants',     String(viewItem.nb_redoublant ?? 0)],
-                  ['Abandons',        String(viewItem.nb_abandon ?? 0)],
-                ].map(([l, v]) => (
-                  <div key={l}><p className="text-xs text-gray-400">{l}</p><p className="font-medium">{v}</p></div>
-                ))}
-              </div>
-              {viewItem.description && (
-                <div className="mt-3">
-                  <p className="text-xs text-gray-400">Description</p>
-                  <p className="mt-1 bg-gray-50 rounded p-2 text-gray-700">{viewItem.description}</p>
+          <div className="-m-4 -mt-4">
+            {/* En-tête orange/amber */}
+            <div className="bg-gradient-to-r from-orange-500 to-amber-600 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <GraduationCap size={22} className="text-white" />
                 </div>
-              )}
+                <div>
+                  <h2 className="text-lg font-bold text-white font-mono">{viewItem.code || '—'}</h2>
+                  <p className="text-white/80 text-sm mt-0.5">
+                    {viewItem.ejp_formations_pcnc ? `${viewItem.ejp_formations_pcnc.code}${viewItem.ejp_formations_pcnc.libelle ? ' — ' + viewItem.ejp_formations_pcnc.libelle : ''}` : (viewItem.classe || '')}
+                  </p>
+                  {viewItem.promotions?.nom && <span className="bg-white/20 text-white text-xs px-2 py-0.5 rounded-full mt-1 inline-block">{viewItem.promotions.nom}</span>}
+                </div>
+              </div>
             </div>
-            {/* Apprenants inscrits */}
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Apprenants inscrits</h4>
-              {(viewItem.inscriptions_formation || []).filter((i: any) => i.statut !== 'abandonne').length === 0
-                ? <p className="text-xs text-gray-400">Aucun apprenant inscrit</p>
-                : <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {(viewItem.inscriptions_formation || []).filter((i: any) => i.statut !== 'abandonne').map((i: any) => (
-                      <div key={i.id} className="flex items-center gap-2 py-1 border-b border-gray-50">
-                        <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
-                        <span className="text-sm text-gray-700">{i.statut}</span>
-                      </div>
-                    ))}
-                  </div>
-              }
+            <div className="px-5 pt-4 pb-2 space-y-4 text-sm">
+              {/* Identification */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Identification</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[['Année', String(viewItem.annee || '—')], ['Nb séances', String(viewItem.nb_seance ?? '—')], ['Séances oblig.', String(viewItem.nb_seance_obligatoire ?? '—')], ['Date création', fmtDate(viewItem.date_creation)]].map(([l, v]) => (
+                    <div key={l} className="bg-orange-50 rounded-xl px-3 py-2"><p className="text-xs text-orange-400 font-medium">{l}</p><p className="font-semibold text-orange-900">{v}</p></div>
+                  ))}
+                </div>
+              </div>
+              {/* Encadrement */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Encadrement</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-amber-50 rounded-xl px-3 py-2"><p className="text-xs text-amber-400 font-medium">Enseignant</p><p className="font-semibold text-amber-900">{viewItem.enseignant_nom || (viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—')}</p></div>
+                  <div className="bg-amber-50 rounded-xl px-3 py-2"><p className="text-xs text-amber-400 font-medium">Assistant</p><p className="font-semibold text-amber-900">{viewItem.assistant_nom || (viewItem.assistant ? `${viewItem.assistant.prenom} ${viewItem.assistant.nom}` : '—')}</p></div>
+                </div>
+              </div>
+              {/* Effectifs */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Effectifs</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[['Femmes', viewItem.nb_femme ?? 0], ['Hommes', viewItem.nb_homme ?? 0], ['Total', (viewItem.nb_femme || 0) + (viewItem.nb_homme || 0)]].map(([l, v]) => (
+                    <div key={l} className="bg-orange-50 rounded-xl px-3 py-2 text-center"><p className="text-xl font-bold text-orange-700">{v}</p><p className="text-xs text-orange-400">{l}</p></div>
+                  ))}
+                </div>
+              </div>
+              {/* Complémentaires */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Informations complémentaires</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[['Date de fin', fmtDate(viewItem.date_fin)], ['Examen prévu', viewItem.examen_prevu ? 'Oui' : 'Non'], ['Redoublants', String(viewItem.nb_redoublant ?? 0)], ['Abandons', String(viewItem.nb_abandon ?? 0)]].map(([l, v]) => (
+                    <div key={l} className="bg-orange-50 rounded-xl px-3 py-2"><p className="text-xs text-orange-400 font-medium">{l}</p><p className="font-semibold text-orange-900">{v}</p></div>
+                  ))}
+                </div>
+                {viewItem.description && <div className="mt-2 bg-gray-50 rounded-xl px-3 py-2"><p className="text-xs text-gray-400">Description</p><p className="text-gray-700 text-sm">{viewItem.description}</p></div>}
+              </div>
+              {/* Apprenants */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Apprenants inscrits</p>
+                {(viewItem.inscriptions_formation || []).filter((i: any) => i.statut !== 'abandonne').length === 0
+                  ? <p className="text-xs text-gray-400">Aucun apprenant inscrit</p>
+                  : <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {(viewItem.inscriptions_formation || []).filter((i: any) => i.statut !== 'abandonne').map((i: any) => (
+                        <div key={i.id} className="flex items-center gap-2 py-1 px-2 rounded bg-gray-50">
+                          <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+                          <span className="text-sm text-gray-700">{i.nom_apprenant || i.statut}</span>
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
+            </div>
+            <div className="px-5 pb-4 flex justify-end border-t border-gray-100 pt-3">
+              <button onClick={() => setViewModal(false)} className="btn btn-secondary text-sm">Fermer</button>
             </div>
           </div>
         )}
-        <div className="flex justify-end mt-4">
-          <button onClick={() => setViewModal(false)} className="btn btn-secondary">Fermer</button>
-        </div>
       </Modal>
 
       {/* Modal Apprenants */}
@@ -1368,42 +1380,48 @@ function ClassesCloatureesTab({
       )}
 
       {/* Modal Voir */}
-      <Modal open={viewModal} onClose={() => setViewModal(false)}
-        title={`Classe clôturée — ${viewItem?.code || '—'}`} size="lg">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title="" size="lg">
         {viewItem && (
-          <div className="space-y-4 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                ['Code',            viewItem.code || '—'],
-                ['Promotion',       viewItem.promotions?.nom || '—'],
-                ['Type PCNC',       viewItem.ejp_formations_pcnc
-                  ? `${viewItem.ejp_formations_pcnc.code}${viewItem.ejp_formations_pcnc.libelle ? ' — ' + viewItem.ejp_formations_pcnc.libelle : ''}`
-                  : (viewItem.classe || '—')],
-                ['Année',           String(viewItem.annee || '—')],
-                ['Enseignant',      viewItem.enseignant_nom || (viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—')],
-                ['Assistant',       viewItem.assistant_nom  || (viewItem.assistant  ? `${viewItem.assistant.prenom}  ${viewItem.assistant.nom}`  : '—')],
-                ['Nb femmes',       String(viewItem.nb_femme  ?? 0)],
-                ['Nb hommes',       String(viewItem.nb_homme  ?? 0)],
-                ['Total inscrits',  String((viewItem.nb_femme || 0) + (viewItem.nb_homme || 0))],
-                ['Examen prévu',    viewItem.examen_prevu ? 'Oui' : 'Non'],
-                ['Redoublants',     String(viewItem.nb_redoublant ?? 0)],
-                ['Abandons',        String(viewItem.nb_abandon ?? 0)],
-                ['Date de fin',     fmtDate(viewItem.date_fin)],
-              ].map(([l, v]) => (
-                <div key={l}><p className="text-xs text-gray-400">{l}</p><p className="font-medium">{v}</p></div>
-              ))}
-            </div>
-            {viewItem.description && (
-              <div>
-                <p className="text-xs text-gray-400">Description</p>
-                <p className="mt-1 bg-gray-50 rounded p-2 text-gray-700">{viewItem.description}</p>
+          <div className="-m-4 -mt-4">
+            {/* En-tête slate/gray — clôturée */}
+            <div className="bg-gradient-to-r from-slate-600 to-gray-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <Lock size={20} className="text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-white font-mono">{viewItem.code || '—'}</h2>
+                    <span className="bg-white/20 text-white text-xs px-2 py-0.5 rounded-full">Clôturée</span>
+                  </div>
+                  <p className="text-white/80 text-sm mt-0.5">
+                    {viewItem.ejp_formations_pcnc ? `${viewItem.ejp_formations_pcnc.code}${viewItem.ejp_formations_pcnc.libelle ? ' — ' + viewItem.ejp_formations_pcnc.libelle : ''}` : (viewItem.classe || '')}
+                  </p>
+                  {viewItem.promotions?.nom && <span className="text-white/70 text-xs">{viewItem.promotions.nom} · {viewItem.annee}</span>}
+                </div>
               </div>
-            )}
+            </div>
+            <div className="px-5 pt-4 pb-2 space-y-4 text-sm">
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Encadrement & Effectifs</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[['Enseignant', viewItem.enseignant_nom || (viewItem.enseignant ? `${viewItem.enseignant.prenom} ${viewItem.enseignant.nom}` : '—')], ['Assistant', viewItem.assistant_nom || (viewItem.assistant ? `${viewItem.assistant.prenom} ${viewItem.assistant.nom}` : '—')], ['Femmes', String(viewItem.nb_femme ?? 0)], ['Hommes', String(viewItem.nb_homme ?? 0)], ['Total inscrits', String((viewItem.nb_femme || 0) + (viewItem.nb_homme || 0))], ['Examen prévu', viewItem.examen_prevu ? 'Oui' : 'Non'], ['Redoublants', String(viewItem.nb_redoublant ?? 0)], ['Abandons', String(viewItem.nb_abandon ?? 0)], ['Date de fin', fmtDate(viewItem.date_fin)]].map(([l, v]) => (
+                    <div key={l} className="bg-slate-50 rounded-xl px-3 py-2"><p className="text-xs text-slate-400 font-medium">{l}</p><p className="font-semibold text-slate-800">{v}</p></div>
+                  ))}
+                </div>
+              </div>
+              {viewItem.description && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2">
+                  <p className="text-xs text-gray-400 font-medium">Description</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewItem.description}</p>
+                </div>
+              )}
+            </div>
+            <div className="px-5 pb-4 flex justify-end border-t border-gray-100 pt-3">
+              <button onClick={() => setViewModal(false)} className="btn btn-secondary text-sm">Fermer</button>
+            </div>
           </div>
         )}
-        <div className="flex justify-end mt-4">
-          <button onClick={() => setViewModal(false)} className="btn btn-secondary">Fermer</button>
-        </div>
       </Modal>
 
       {/* Confirm ré-ouverture */}

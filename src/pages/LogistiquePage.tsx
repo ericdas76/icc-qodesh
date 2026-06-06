@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit2, Loader, Download, Eye, Package } from 'lucide-react'
+import { Plus, Edit2, Loader, Download, Eye, Package, Tag, Hash, Wrench, ArrowLeftRight } from 'lucide-react'
 import Modal from '../components/Modal'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -544,56 +544,75 @@ export default function LogistiquePage() {
       <Modal
         isOpen={!!viewing}
         onClose={() => setViewing(null)}
-        title="Détail article logistique"
+        title=""
+        size="md"
       >
         {viewing && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="label">Catégorie</span>
-                <p className="font-medium">{viewing.categorie}</p>
-              </div>
-              <div>
-                <span className="label">Désignation</span>
-                <p className="font-bold text-gray-900">{viewing.designation}</p>
-              </div>
-              <div>
-                <span className="label">État</span>
-                <p>
-                  <span className={`badge ${etatBadge(viewing.etat).color}`}>
-                    {etatBadge(viewing.etat).label}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <span className="label">N° Série / Réf.</span>
-                <p className="font-mono">{viewing.numero_serie || '-'}</p>
-              </div>
-              <div>
-                <span className="label">En prêt</span>
-                <p>{viewing.pret ? '✅ Oui' : '❌ Non'}</p>
-              </div>
-              <div>
-                <span className="label">En maintenance</span>
-                <p>{viewing.maintenance ? '🔧 Oui' : '✅ Non'}</p>
+          <div className="-m-4 -mt-4">
+            {/* Header stone/brown */}
+            <div className="bg-gradient-to-r from-stone-600 to-stone-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <Package size={24} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">{viewing.designation}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="px-2 py-0.5 bg-white/20 rounded-full text-white text-xs font-medium">
+                      {viewing.categorie}
+                    </span>
+                    <span className={`badge ${etatBadge(viewing.etat).color}`}>
+                      {etatBadge(viewing.etat).label}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
-            {viewing.notes && (
-              <div>
-                <span className="label">Notes</span>
-                <p className="text-gray-600 mt-1 p-2 bg-gray-50 rounded">{viewing.notes}</p>
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-stone-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-stone-400 font-medium flex items-center gap-1"><Tag size={11} /> Catégorie</p>
+                  <p className="font-semibold text-stone-900 text-sm mt-0.5">{viewing.categorie}</p>
+                </div>
+                <div className="bg-stone-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-stone-400 font-medium flex items-center gap-1"><Hash size={11} /> N° Série / Réf.</p>
+                  <p className="font-semibold text-stone-900 text-sm mt-0.5 font-mono">{viewing.numero_serie || '—'}</p>
+                </div>
+                <div className="bg-stone-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-stone-400 font-medium flex items-center gap-1"><ArrowLeftRight size={11} /> En prêt</p>
+                  <p className="font-semibold text-sm mt-0.5">
+                    {viewing.pret
+                      ? <span className="text-blue-700">✅ Oui</span>
+                      : <span className="text-stone-500">Non</span>}
+                  </p>
+                </div>
+                <div className="bg-stone-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-stone-400 font-medium flex items-center gap-1"><Wrench size={11} /> En maintenance</p>
+                  <p className="font-semibold text-sm mt-0.5">
+                    {viewing.maintenance
+                      ? <span className="text-yellow-700">🔧 Oui</span>
+                      : <span className="text-stone-500">Non</span>}
+                  </p>
+                </div>
               </div>
-            )}
-            <div className="flex justify-between pt-2">
-              {hasPermission('logistique', 'update') && (
-                <button
-                  onClick={() => { setViewing(null); openEdit(viewing) }}
-                  className="btn-secondary flex items-center gap-2"
-                >
-                  <Edit2 size={14} /> Modifier
-                </button>
+              {viewing.notes && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Notes</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewing.notes}</p>
+                </div>
               )}
-              <button onClick={() => setViewing(null)} className="btn-primary">Fermer</button>
+              <div className="flex justify-between pt-1">
+                {hasPermission('logistique', 'update') && (
+                  <button
+                    onClick={() => { setViewing(null); openEdit(viewing) }}
+                    className="btn-secondary flex items-center gap-2"
+                  >
+                    <Edit2 size={14} /> Modifier
+                  </button>
+                )}
+                <button onClick={() => setViewing(null)} className="btn-primary">Fermer</button>
+              </div>
             </div>
           </div>
         )}

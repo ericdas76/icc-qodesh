@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { Plus, Edit, Trash2, Loader, Eye, FileText, FileSpreadsheet, Star } from 'lucide-react'
+import { Plus, Edit, Trash2, Loader, Eye, FileText, FileSpreadsheet, Star, Calendar, Clock, Users } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
@@ -348,26 +348,66 @@ export default function ActivitesPriereStar() {
       </Modal>
 
       {/* Modal Visualiser */}
-      <Modal open={viewModal} onClose={() => setViewModal(false)} title="Détail séance prière STAR" size="md">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title="" size="md">
         {viewItem && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <div><span className="label">Date</span><p className="font-semibold">{fmtDate(viewItem.date_activite)}</p></div>
-              <div><span className="label">Durée</span><p>{viewItem.duree_minutes ? `${viewItem.duree_minutes} min` : '—'}</p></div>
-              <div className="col-span-2"><span className="label">Conducteurs</span><p>{viewItem.conducteurs_priere || '—'}</p></div>
-              <div><span className="label">Heure début</span><p>{viewItem.heure_debut || '—'}</p></div>
-              <div><span className="label">Heure fin</span><p>{viewItem.heure_fin || '—'}</p></div>
+          <div className="-m-4 -mt-4">
+            {/* Header indigo/blue */}
+            <div className="bg-gradient-to-r from-indigo-600 to-blue-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <Star size={24} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Prière STAR</h2>
+                  <p className="text-indigo-100 text-sm mt-0.5 flex items-center gap-1">
+                    <Calendar size={13} /> {fmtDate(viewItem.date_activite)}
+                  </p>
+                  {viewItem.conducteurs_priere && (
+                    <p className="text-indigo-200 text-xs mt-0.5 flex items-center gap-1">
+                      <Users size={12} /> {viewItem.conducteurs_priere}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-4 gap-3 bg-slate-50 rounded p-3 text-center">
-              <div><p className="text-2xl font-bold text-yellow-600">{viewItem.nombre_star || 0}</p><p className="text-xs text-slate-400">STAR</p></div>
-              <div><p className="text-2xl font-bold text-blue-600">{viewItem.hommes || 0}</p><p className="text-xs text-slate-400">Hommes</p></div>
-              <div><p className="text-2xl font-bold text-pink-500">{viewItem.femmes || 0}</p><p className="text-xs text-slate-400">Femmes</p></div>
-              <div><p className="text-2xl font-bold text-green-600">{viewItem.enfants || 0}</p><p className="text-xs text-slate-400">Enfants</p></div>
-            </div>
-            {viewItem.comptage && <div><span className="label">Comptage</span><p>{viewItem.comptage}</p></div>}
-            {viewItem.notes && <div><span className="label">Notes</span><p>{viewItem.notes}</p></div>}
-            <div className="flex justify-end pt-2">
-              <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-indigo-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-indigo-400 font-medium flex items-center gap-1"><Clock size={11} /> Heure début</p>
+                  <p className="font-semibold text-indigo-900 text-sm mt-0.5">{viewItem.heure_debut || '—'}</p>
+                </div>
+                <div className="bg-indigo-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-indigo-400 font-medium flex items-center gap-1"><Clock size={11} /> Heure fin</p>
+                  <p className="font-semibold text-indigo-900 text-sm mt-0.5">{viewItem.heure_fin || '—'}</p>
+                </div>
+                <div className="bg-indigo-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-indigo-400 font-medium">Durée</p>
+                  <p className="font-semibold text-indigo-900 text-sm mt-0.5">{viewItem.duree_minutes ? `${viewItem.duree_minutes} min` : '—'}</p>
+                </div>
+              </div>
+              {/* Statistiques */}
+              <div className="grid grid-cols-4 gap-2 bg-indigo-50 rounded-xl p-3 text-center">
+                <div><p className="text-2xl font-bold text-yellow-600">{viewItem.nombre_star || 0}</p><p className="text-xs text-indigo-400">STAR</p></div>
+                <div><p className="text-2xl font-bold text-blue-600">{viewItem.hommes || 0}</p><p className="text-xs text-indigo-400">Hommes</p></div>
+                <div><p className="text-2xl font-bold text-pink-500">{viewItem.femmes || 0}</p><p className="text-xs text-indigo-400">Femmes</p></div>
+                <div><p className="text-2xl font-bold text-green-600">{viewItem.enfants || 0}</p><p className="text-xs text-indigo-400">Enfants</p></div>
+              </div>
+              {viewItem.comptage && (
+                <div className="bg-blue-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-blue-400 font-medium">Comptage</p>
+                  <p className="text-blue-800 text-sm mt-0.5">{viewItem.comptage}</p>
+                </div>
+              )}
+              {viewItem.notes && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Notes</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewItem.notes}</p>
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
+              </div>
             </div>
           </div>
         )}

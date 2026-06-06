@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit2, Loader, Download, Eye, Droplets, Users } from 'lucide-react'
+import { Plus, Edit2, Loader, Download, Eye, Droplets, Users, Calendar, Hash, CheckCircle2 } from 'lucide-react'
 import Modal from '../components/Modal'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -428,31 +428,86 @@ export default function BaptemesSessions() {
       </Modal>
 
       {/* Modal Visualiser Inscrit */}
-      <Modal open={viewModal} onClose={() => setViewModal(false)} title={`Fiche — ${viewInscrit?.prenom} ${viewInscrit?.nom}`} size="md">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title="" size="md">
         {viewInscrit && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                ['Session', viewInscrit.sessions_bapteme?.nom_session || '—'],
-                ['Nom complet', `${viewInscrit.prenom} ${viewInscrit.nom}`],
-                ['Date naissance', viewInscrit.date_naissance ? format(new Date(viewInscrit.date_naissance), 'dd MMMM yyyy', { locale: fr }) : '—'],
-                ['Arrivée ICC', viewInscrit.date_arrivee_icc ? format(new Date(viewInscrit.date_arrivee_icc), 'dd MMMM yyyy', { locale: fr }) : '—'],
-                ['Conversion', viewInscrit.date_conversion ? format(new Date(viewInscrit.date_conversion), 'dd MMMM yyyy', { locale: fr }) : '—'],
-                ['Cours baptême', viewInscrit.date_cours ? format(new Date(viewInscrit.date_cours), 'dd MMMM yyyy', { locale: fr }) : '—'],
-                ['Témoignage', viewInscrit.temoignage ? '✓ Oui' : 'Non'],
-                ['Date baptême', viewInscrit.date_bapteme ? format(new Date(viewInscrit.date_bapteme), 'dd MMMM yyyy', { locale: fr }) : '—'],
-                ['Officiant', viewInscrit.officiant || '—'],
-              ].map(([l, v]) => (
-                <div key={l}><p className="text-xs text-slate-500">{l}</p><p className="font-medium">{v}</p></div>
-              ))}
+          <div className="-m-4 -mt-4">
+            {/* Header sky/blue */}
+            <div className="bg-gradient-to-r from-sky-500 to-blue-600 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xl font-bold text-white shrink-0">
+                  {viewInscrit.prenom?.[0]?.toUpperCase()}{viewInscrit.nom?.[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">{viewInscrit.prenom} {viewInscrit.nom}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="px-2 py-0.5 bg-white/20 rounded-full text-white text-xs font-medium flex items-center gap-1">
+                      <Droplets size={11} /> {viewInscrit.sessions_bapteme?.nom_session || '—'}
+                    </span>
+                    {viewInscrit.temoignage && (
+                      <span className="px-2 py-0.5 bg-green-400/30 rounded-full text-white text-xs font-medium flex items-center gap-1">
+                        <CheckCircle2 size={11} /> Témoignage
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-            {viewInscrit.temoignage && viewInscrit.detail_temoignage && (
-              <div><p className="text-xs text-slate-500">Détail témoignage</p><p className="bg-green-50 p-2 rounded text-sm">{viewInscrit.detail_temoignage}</p></div>
-            )}
-            {viewInscrit.notes && <div><p className="text-xs text-slate-500">Notes</p><p className="bg-slate-50 p-2 rounded text-sm">{viewInscrit.notes}</p></div>}
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-sky-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-sky-400 font-medium flex items-center gap-1"><Calendar size={11} /> Date naissance</p>
+                  <p className="font-semibold text-sky-900 text-sm mt-0.5">
+                    {viewInscrit.date_naissance ? format(new Date(viewInscrit.date_naissance), 'dd MMMM yyyy', { locale: fr }) : '—'}
+                  </p>
+                </div>
+                <div className="bg-sky-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-sky-400 font-medium flex items-center gap-1"><Calendar size={11} /> Arrivée ICC</p>
+                  <p className="font-semibold text-sky-900 text-sm mt-0.5">
+                    {viewInscrit.date_arrivee_icc ? format(new Date(viewInscrit.date_arrivee_icc), 'dd MMMM yyyy', { locale: fr }) : '—'}
+                  </p>
+                </div>
+                <div className="bg-blue-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-blue-400 font-medium flex items-center gap-1"><Calendar size={11} /> Conversion</p>
+                  <p className="font-semibold text-blue-900 text-sm mt-0.5">
+                    {viewInscrit.date_conversion ? format(new Date(viewInscrit.date_conversion), 'dd MMMM yyyy', { locale: fr }) : '—'}
+                  </p>
+                </div>
+                <div className="bg-blue-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-blue-400 font-medium flex items-center gap-1"><Calendar size={11} /> Cours baptême</p>
+                  <p className="font-semibold text-blue-900 text-sm mt-0.5">
+                    {viewInscrit.date_cours ? format(new Date(viewInscrit.date_cours), 'dd MMMM yyyy', { locale: fr }) : '—'}
+                  </p>
+                </div>
+                <div className="bg-sky-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-sky-400 font-medium flex items-center gap-1"><Droplets size={11} /> Date baptême</p>
+                  <p className="font-semibold text-sky-900 text-sm mt-0.5">
+                    {viewInscrit.date_bapteme ? format(new Date(viewInscrit.date_bapteme), 'dd MMMM yyyy', { locale: fr }) : '—'}
+                  </p>
+                </div>
+                <div className="bg-sky-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-sky-400 font-medium flex items-center gap-1"><Hash size={11} /> Officiant</p>
+                  <p className="font-semibold text-sky-900 text-sm mt-0.5">{viewInscrit.officiant || '—'}</p>
+                </div>
+              </div>
+              {viewInscrit.temoignage && viewInscrit.detail_temoignage && (
+                <div className="bg-green-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-green-500 font-medium">Détail témoignage</p>
+                  <p className="text-green-800 text-sm mt-0.5">{viewInscrit.detail_temoignage}</p>
+                </div>
+              )}
+              {viewInscrit.notes && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Notes</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewInscrit.notes}</p>
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
+              </div>
+            </div>
           </div>
         )}
-        <div className="flex justify-end mt-4"><button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button></div>
       </Modal>
 
       <ConfirmDialog open={!!deleteSessionDialog} onClose={() => setDeleteSessionDialog(null)} onConfirm={deleteSession}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Search, Eye, Edit2, Trash2, Download, FileText, Users, UserPlus, UserMinus } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, Trash2, Download, FileText, Users, UserPlus, UserMinus, MapPin, Clock, Calendar, Home } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
@@ -456,52 +456,71 @@ export default function FamillesImpactPage() {
       </Modal>
 
       {/* Modal Visualiser */}
-      <Modal isOpen={viewModal} onClose={() => setViewModal(false)} title={`Détail — ${viewItem?.nom}`} size="lg">
+      <Modal isOpen={viewModal} onClose={() => setViewModal(false)} title="" size="lg">
         {viewItem && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {[
-                ['Nom', viewItem.nom],
-                ['Quartier', viewItem.quartier || '—'],
-                ['Adresse hôte', viewItem.adresse_maison_hote || '—'],
-                ['Responsable', viewItem.responsable ? `${viewItem.responsable.prenom} ${viewItem.responsable.nom}` : '—'],
-                ['Copilote', viewItem.copilote ? `${viewItem.copilote.prenom} ${viewItem.copilote.nom}` : '—'],
-                ['Jour réunion', viewItem.jour_reunion || '—'],
-                ['Heure réunion', viewItem.heure_reunion || '—'],
-                ['Date création', viewItem.date_creation ? format(new Date(viewItem.date_creation), 'dd MMMM yyyy', { locale: fr }) : '—'],
-                ['Nb membres actifs', String(getNbMembres(viewItem))],
-              ].map(([label, val]) => (
-                <div key={label}>
-                  <p className="text-xs text-gray-500 font-medium">{label}</p>
-                  <p className="text-gray-900">{val}</p>
+          <div className="-m-4 -mt-4">
+            {/* En-tête teal/cyan */}
+            <div className="bg-gradient-to-r from-teal-600 to-cyan-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <Home size={22} className="text-white" />
                 </div>
-              ))}
+                <div>
+                  <h2 className="text-xl font-bold text-white">{viewItem.nom}</h2>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {viewItem.quartier && <span className="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full flex items-center gap-1"><MapPin size={10}/> {viewItem.quartier}</span>}
+                    <span className="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full flex items-center gap-1"><Users size={10}/> {getNbMembres(viewItem)} membre{getNbMembres(viewItem) > 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">Membres actifs</p>
-              <div className="space-y-1 max-h-40 overflow-y-auto">
+            {/* Infos */}
+            <div className="px-5 pt-4 pb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Informations</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Responsable', val: viewItem.responsable ? `${viewItem.responsable.prenom} ${viewItem.responsable.nom}` : '—' },
+                  { label: 'Copilote', val: viewItem.copilote ? `${viewItem.copilote.prenom} ${viewItem.copilote.nom}` : '—' },
+                  { label: 'Jour réunion', val: viewItem.jour_reunion || '—' },
+                  { label: 'Heure réunion', val: viewItem.heure_reunion || '—' },
+                  { label: 'Adresse hôte', val: viewItem.adresse_maison_hote || '—' },
+                  { label: 'Date création', val: viewItem.date_creation ? format(new Date(viewItem.date_creation), 'dd MMMM yyyy', { locale: fr }) : '—' },
+                ].map(({ label, val }) => (
+                  <div key={label} className="bg-teal-50 rounded-xl px-3 py-2.5">
+                    <p className="text-xs text-teal-400 font-medium mb-0.5">{label}</p>
+                    <p className="font-semibold text-teal-900 text-sm">{val}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Membres */}
+            <div className="px-5 pb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5"><Users size={11}/> Membres actifs ({(viewItem.membres_familles_impact || []).filter((m: any) => m.actif).length})</p>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
                 {(viewItem.membres_familles_impact || []).filter((m: any) => m.actif).length === 0
                   ? <p className="text-sm text-gray-400">Aucun membre</p>
                   : (viewItem.membres_familles_impact || []).filter((m: any) => m.actif).map((m: any) => (
-                    <div key={m.personne_id} className="flex items-center gap-2 text-sm py-1 border-b border-gray-50">
-                      <span className="w-2 h-2 bg-green-400 rounded-full" />
-                      <span>{m.personnes?.prenom} {m.personnes?.nom}</span>
-                      <span className="text-gray-400 text-xs">{m.personnes?.telephone || ''}</span>
+                    <div key={m.personne_id} className="flex items-center gap-2 text-sm py-1.5 px-2 rounded-lg bg-teal-50">
+                      <span className="w-2 h-2 bg-teal-400 rounded-full shrink-0" />
+                      <span className="font-medium text-teal-900">{m.personnes?.prenom} {m.personnes?.nom}</span>
+                      {m.personnes?.telephone && <span className="text-teal-400 text-xs ml-auto">{m.personnes.telephone}</span>}
                     </div>
                   ))}
               </div>
             </div>
             {viewItem.notes && (
-              <div>
-                <p className="text-xs text-gray-500 font-medium">Notes</p>
-                <p className="text-gray-700 bg-gray-50 p-2 rounded text-sm">{viewItem.notes}</p>
+              <div className="px-5 pb-3">
+                <div className="bg-gray-50 rounded-xl px-3 py-2">
+                  <p className="text-xs text-gray-400 font-medium">Notes</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewItem.notes}</p>
+                </div>
               </div>
             )}
+            <div className="px-5 pb-4 flex justify-end border-t border-gray-100 pt-3">
+              <button onClick={() => setViewModal(false)} className="btn-secondary text-sm">Fermer</button>
+            </div>
           </div>
         )}
-        <div className="flex justify-end mt-4">
-          <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
-        </div>
       </Modal>
 
       {/* Modal Gestion membres */}

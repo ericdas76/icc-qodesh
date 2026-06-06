@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { Plus, Edit, Trash2, Loader, Eye, FileText, FileSpreadsheet, CalendarOff } from 'lucide-react'
+import { Plus, Edit, Trash2, Loader, Eye, FileText, FileSpreadsheet, CalendarOff, Calendar, User, Building2, Clock } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
@@ -522,33 +522,69 @@ export default function ActivitesConges() {
       </Modal>
 
       {/* ── Modal Visualiser ── */}
-      <Modal isOpen={viewModal} onClose={() => setViewModal(false)} title="Détail du congé" size="md">
+      <Modal isOpen={viewModal} onClose={() => setViewModal(false)} title="" size="md">
         {viewItem && (
-          <div className="space-y-4 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="font-mono font-bold text-violet-700 bg-violet-50 px-3 py-1 rounded-lg">
-                {fmtOrdre(viewItem.ordre)}
-              </span>
-              {statutBadge(viewItem.statut)}
+          <div className="-m-4 -mt-4">
+            {/* Header green/teal */}
+            <div className="bg-gradient-to-r from-green-600 to-teal-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xl font-bold text-white shrink-0">
+                  {viewItem.prenom_nom?.[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">{viewItem.prenom_nom}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="font-mono text-green-100 text-sm">{fmtOrdre(viewItem.ordre)}</span>
+                    {statutBadge(viewItem.statut)}
+                    {typeBadge(viewItem.type_conge)}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><span className="label">Prénom & Nom</span><p className="font-semibold">{viewItem.prenom_nom}</p></div>
-              <div><span className="label">Sexe</span><p>{viewItem.sexe === 'M' ? 'Homme' : viewItem.sexe === 'F' ? 'Femme' : '—'}</p></div>
-              <div><span className="label">Catégorie</span><p>{viewItem.categorie || '—'}</p></div>
-              <div><span className="label">Département</span><p>{viewItem.departement || '—'}</p></div>
-              <div><span className="label">Type</span><p>{typeBadge(viewItem.type_conge)}</p></div>
-              <div><span className="label">Année</span><p>{viewItem.annee}</p></div>
-              <div><span className="label">Date début</span><p>{fmtDate(viewItem.date_debut)}</p></div>
-              <div><span className="label">Date fin</span><p>{fmtDate(viewItem.date_fin)}</p></div>
-            </div>
-            <div className="bg-violet-50 rounded-lg p-3 text-center">
-              <span className="text-violet-700 font-bold text-xl">{calcDuree(viewItem.date_debut, viewItem.date_fin)}</span>
-              <p className="text-xs text-violet-400 mt-0.5">durée totale</p>
-            </div>
-            {viewItem.description && <div><span className="label">Description</span><p>{viewItem.description}</p></div>}
-            {viewItem.remarque_speciale && <div><span className="label">Remarque</span><p>{viewItem.remarque_speciale}</p></div>}
-            <div className="flex justify-end pt-2">
-              <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-green-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-green-400 font-medium flex items-center gap-1"><User size={11} /> Sexe</p>
+                  <p className="font-semibold text-green-900 text-sm mt-0.5">{viewItem.sexe === 'M' ? 'Homme' : viewItem.sexe === 'F' ? 'Femme' : '—'}</p>
+                </div>
+                <div className="bg-green-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-green-400 font-medium">Catégorie</p>
+                  <p className="font-semibold text-green-900 text-sm mt-0.5">{viewItem.categorie || '—'}</p>
+                </div>
+                <div className="bg-teal-50 rounded-xl px-3 py-2.5 col-span-2">
+                  <p className="text-xs text-teal-400 font-medium flex items-center gap-1"><Building2 size={11} /> Département</p>
+                  <p className="font-semibold text-teal-900 text-sm mt-0.5">{viewItem.departement || '—'}</p>
+                </div>
+                <div className="bg-green-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-green-400 font-medium flex items-center gap-1"><Calendar size={11} /> Date début</p>
+                  <p className="font-semibold text-green-900 text-sm mt-0.5">{fmtDate(viewItem.date_debut)}</p>
+                </div>
+                <div className="bg-green-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-green-400 font-medium flex items-center gap-1"><Calendar size={11} /> Date fin</p>
+                  <p className="font-semibold text-green-900 text-sm mt-0.5">{fmtDate(viewItem.date_fin)}</p>
+                </div>
+              </div>
+              {/* Durée */}
+              <div className="bg-teal-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-teal-700">{calcDuree(viewItem.date_debut, viewItem.date_fin)}</p>
+                <p className="text-xs text-teal-400 mt-0.5">durée totale</p>
+              </div>
+              {viewItem.description && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Description</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewItem.description}</p>
+                </div>
+              )}
+              {viewItem.remarque_speciale && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Remarque spéciale</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewItem.remarque_speciale}</p>
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
+              </div>
             </div>
           </div>
         )}
