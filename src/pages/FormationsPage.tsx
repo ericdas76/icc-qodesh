@@ -254,7 +254,9 @@ function PromotionsTab({
     onRefresh()
   }
 
-  const PromoForm = () => (
+  // promoFormJsx : JSX inline (pas de sous-composant) pour éviter le remontage au re-render
+  // Pattern identique à classeFormJsx dans ClassesEnCoursTab
+  const promoFormJsx = (
     <div className="space-y-4">
       <div>
         <label className="label">Nom de la promotion *</label>
@@ -328,7 +330,7 @@ function PromotionsTab({
 
       {/* Modal Ajouter */}
       <Modal open={addModal} onClose={() => setAddModal(false)} title="Nouvelle promotion" size="md">
-        <PromoForm />
+        {promoFormJsx}
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setAddModal(false)} className="btn btn-secondary">Annuler</button>
           <button onClick={doAdd} disabled={saving} className="btn btn-primary">
@@ -340,7 +342,7 @@ function PromotionsTab({
       {/* Modal Modifier */}
       <Modal open={editModal} onClose={() => setEditModal(false)}
         title={`Modifier — ${editItem?.nom}`} size="md">
-        <PromoForm />
+        {promoFormJsx}
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
           <button onClick={() => setEditModal(false)} className="btn btn-secondary">Annuler</button>
           <button onClick={doEdit} disabled={saving} className="btn btn-primary">

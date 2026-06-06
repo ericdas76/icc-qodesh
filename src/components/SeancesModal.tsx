@@ -94,10 +94,11 @@ export default function SeancesModal({
     if (!classe) return
     const { data } = await supabase
       .from('inscriptions_formation')
-      .select('id, nom_apprenant, personnes(prenom, nom)')
+      .select('id, nom_apprenant, statut, type_apprenant')
       .eq('formation_id', classe.id)
       .neq('statut', 'abandonne')
-    setInscrits(data || [])
+    // Convertir id en string pour compatibilité avec presences_seance.inscription_id (text)
+    setInscrits((data || []).map((i: any) => ({ ...i, id: String(i.id) })))
   }
 
   useEffect(() => {
@@ -192,7 +193,7 @@ export default function SeancesModal({
     const { data } = await supabase
       .from('presences_seance')
       .select('inscription_id, present')
-      .eq('seance_id', s.id)
+      .eq('seance_id', String(s.id))
     const map: Record<string, boolean> = {}
     inscrits.forEach(i => { map[i.id] = false })
     ;(data || []).forEach((p: any) => { map[p.inscription_id] = p.present })
@@ -205,12 +206,12 @@ export default function SeancesModal({
     setSaving(true)
     try {
       // Supprimer les présences existantes
-      await supabase.from('presences_seance').delete().eq('seance_id', presenceSeance.id)
+      await supabase.from('presences_seance').delete().eq('seance_id', String(presenceSeance.id))
       // Insérer les nouvelles
       const rows = inscrits.map(i => ({
-        seance_id: presenceSeance.id,
-        inscription_id: i.id,
-        present: presences[i.id] || false,
+        seance_id: String(presenceSeance.id),
+        inscription_id: String(i.id),
+        present: presences[String(i.id)] || false,
       }))
       if (rows.length > 0) {
         const { error } = await supabase.from('presences_seance').insert(rows)
@@ -348,7 +349,7 @@ export default function SeancesModal({
       </div>
       <div className="divide-y border rounded-lg max-h-72 overflow-y-auto">
         {inscrits.map(i => {
-          const nom = i.nom_apprenant || `${i.personnes?.prenom || ''} ${i.personnes?.nom || ''}`.trim() || '—'
+          const nom = i.nom_apprenant || '—'
           return (
             <div key={i.id}
               className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer"
@@ -495,7 +496,7 @@ function StatsSeances({ seances, inscrits, classeId }: { seances: any[], inscrit
     const { data } = await supabase
       .from('presences_seance')
       .select('inscription_id, present, seance_id')
-      .in('seance_id', seances.map(s => s.id))
+      .in('seance_id', seances.map(s => String(s.id)))
 
     const absencesMap: Record<string, number> = {}
     const presencesMap: Record<string, number> = {}
@@ -514,8 +515,7 @@ function StatsSeances({ seances, inscrits, classeId }: { seances: any[], inscrit
     setOpen(true)
   }
 
-  const nomInscrit = (i: any) =>
-    i.nom_apprenant || `${i.personnes?.prenom || ''} ${i.personnes?.nom || ''}`.trim() || '—'
+  const nomInscrit = (i: any) => i.nom_apprenant || '—'
 
   return (
     <div className="border-t pt-3">
