@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, Edit, Trash2, Loader, Eye, FileSpreadsheet, Users, Calendar, X, Check } from 'lucide-react'
+import { Plus, Edit, Trash2, Loader, Eye, FileSpreadsheet, Users, Calendar, X, Check, Phone, Mail, MapPin, Globe, Clock } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
@@ -307,46 +307,122 @@ function MembresEJPTab() {
       )}
 
       {/* Modal Vue */}
-      <Modal open={viewModal} onClose={() => setViewModal(false)} title={`Fiche — ${viewItem?.prenom} ${viewItem?.nom}`} size="lg">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title="" size="lg">
         {viewItem && (
-          <div className="space-y-4 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <div><span className="text-slate-400 text-xs">Code</span><p className="font-mono text-purple-700">{viewItem.code_membre_ejp}</p></div>
-              <div><span className="text-slate-400 text-xs">Statut</span><p>{viewItem.actif ? 'Actif' : 'Inactif'}</p></div>
-              <div><span className="text-slate-400 text-xs">Nom</span><p className="font-medium">{viewItem.nom}</p></div>
-              <div><span className="text-slate-400 text-xs">Prénom</span><p>{viewItem.prenom}</p></div>
-              <div><span className="text-slate-400 text-xs">Date naissance</span><p>{fmtDate(viewItem.date_naissance)}</p></div>
-              <div><span className="text-slate-400 text-xs">Âge</span><p>{calcAge(viewItem.date_naissance) ?? '—'} ans</p></div>
-              <div><span className="text-slate-400 text-xs">Lieu naissance</span><p>{viewItem.lieu_naissance || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Sexe</span><p>{viewItem.sexe || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Nationalité</span><p>{viewItem.nationalite || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Langue</span><p>{viewItem.langue_parlee || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Téléphone</span><p>{viewItem.telephone1 || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">WhatsApp</span><p>{viewItem.whatsapp || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Email</span><p>{viewItem.email || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Origine</span><p>{viewItem.origine || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Source contact</span><p>{viewItem.source_contact || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">De passage</span><p>{viewItem.de_passage ? 'Oui' : 'Non'}</p></div>
-              <div><span className="text-slate-400 text-xs">Département EJP</span><p>{viewItem.ejp_departements?.nom || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Baptême</span><p>{viewItem.bapteme ? 'Oui' : 'Non'}</p></div>
-              {viewItem.bapteme && <div><span className="text-slate-400 text-xs">Date baptême</span><p>{viewItem.date_bapteme || '—'}</p></div>}
-              <div>
-                <span className="text-slate-400 text-xs">Formation PCNC</span>
-                {viewItem.ejp_formations_pcnc ? (
-                  <div>
-                    <p className="font-medium">{viewItem.ejp_formations_pcnc.code}{viewItem.ejp_formations_pcnc.libelle ? ` — ${viewItem.ejp_formations_pcnc.libelle}` : ''}</p>
-                    {(viewItem.ejp_formations_pcnc.nb_seance != null || viewItem.ejp_formations_pcnc.nb_seance_obligatoire != null) && (
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {viewItem.ejp_formations_pcnc.nb_seance != null && `${viewItem.ejp_formations_pcnc.nb_seance} séance${viewItem.ejp_formations_pcnc.nb_seance > 1 ? 's' : ''} au total`}
-                        {viewItem.ejp_formations_pcnc.nb_seance != null && viewItem.ejp_formations_pcnc.nb_seance_obligatoire != null && ' · '}
-                        {viewItem.ejp_formations_pcnc.nb_seance_obligatoire != null && `${viewItem.ejp_formations_pcnc.nb_seance_obligatoire} obligatoire${viewItem.ejp_formations_pcnc.nb_seance_obligatoire > 1 ? 's' : ''}`}
-                      </p>
-                    )}
+          <div className="-m-4 -mt-4">
+            {/* Header purple/violet */}
+            <div className="bg-gradient-to-r from-purple-600 to-violet-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xl font-bold text-white shrink-0">
+                  {viewItem.prenom?.[0]?.toUpperCase()}{viewItem.nom?.[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">{viewItem.prenom} {viewItem.nom}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="font-mono text-purple-200 text-sm">{viewItem.code_membre_ejp}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${viewItem.actif ? 'bg-green-400/30 text-white' : 'bg-red-400/30 text-white'}`}>
+                      {viewItem.actif ? 'Actif' : 'Inactif'}
+                    </span>
                   </div>
-                ) : <p>—</p>}
+                  {viewItem.ejp_departements?.nom && (
+                    <p className="text-purple-200 text-xs mt-0.5">Dept. {viewItem.ejp_departements.nom}</p>
+                  )}
+                </div>
               </div>
             </div>
-            {viewItem.note && <div><span className="text-slate-400 text-xs">Note</span><p className="mt-1 text-slate-700">{viewItem.note}</p></div>}
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+              {/* Identité */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium">Date naissance</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{fmtDate(viewItem.date_naissance)}</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium">Âge</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{calcAge(viewItem.date_naissance) ?? '—'} ans</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium">Sexe</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{viewItem.sexe || '—'}</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium">Lieu naissance</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{viewItem.lieu_naissance || '—'}</p>
+                </div>
+                <div className="bg-violet-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-violet-400 font-medium flex items-center gap-1"><Globe size={11} /> Nationalité</p>
+                  <p className="font-semibold text-violet-900 text-sm mt-0.5">{viewItem.nationalite || '—'}</p>
+                </div>
+                <div className="bg-violet-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-violet-400 font-medium">Langue</p>
+                  <p className="font-semibold text-violet-900 text-sm mt-0.5">{viewItem.langue_parlee || '—'}</p>
+                </div>
+              </div>
+              {/* Contact */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium flex items-center gap-1"><Phone size={11} /> Téléphone</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{viewItem.telephone1 || '—'}</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium flex items-center gap-1"><Phone size={11} /> WhatsApp</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{viewItem.whatsapp || '—'}</p>
+                </div>
+                {viewItem.email && (
+                  <div className="bg-purple-50 rounded-xl px-3 py-2.5 col-span-2">
+                    <p className="text-xs text-purple-400 font-medium flex items-center gap-1"><Mail size={11} /> Email</p>
+                    <p className="font-semibold text-purple-900 text-sm mt-0.5">{viewItem.email}</p>
+                  </div>
+                )}
+              </div>
+              {/* Suivi */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-violet-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-violet-400 font-medium">Origine</p>
+                  <p className="font-semibold text-violet-900 text-sm mt-0.5">{viewItem.origine || '—'}</p>
+                </div>
+                <div className="bg-violet-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-violet-400 font-medium">Source contact</p>
+                  <p className="font-semibold text-violet-900 text-sm mt-0.5">{viewItem.source_contact || '—'}</p>
+                </div>
+                <div className="bg-violet-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-violet-400 font-medium">De passage</p>
+                  <p className="font-semibold text-violet-900 text-sm mt-0.5">{viewItem.de_passage ? 'Oui' : 'Non'}</p>
+                </div>
+                <div className="bg-violet-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-violet-400 font-medium">Baptême</p>
+                  <p className="font-semibold text-violet-900 text-sm mt-0.5">
+                    {viewItem.bapteme ? `Oui${viewItem.date_bapteme ? ` (${viewItem.date_bapteme})` : ''}` : 'Non'}
+                  </p>
+                </div>
+              </div>
+              {/* Formation PCNC */}
+              {viewItem.ejp_formations_pcnc && (
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium">Formation PCNC</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">
+                    {viewItem.ejp_formations_pcnc.code}{viewItem.ejp_formations_pcnc.libelle ? ` — ${viewItem.ejp_formations_pcnc.libelle}` : ''}
+                  </p>
+                  {(viewItem.ejp_formations_pcnc.nb_seance != null || viewItem.ejp_formations_pcnc.nb_seance_obligatoire != null) && (
+                    <p className="text-xs text-purple-400 mt-0.5">
+                      {viewItem.ejp_formations_pcnc.nb_seance != null && `${viewItem.ejp_formations_pcnc.nb_seance} séance${viewItem.ejp_formations_pcnc.nb_seance > 1 ? 's' : ''} au total`}
+                      {viewItem.ejp_formations_pcnc.nb_seance != null && viewItem.ejp_formations_pcnc.nb_seance_obligatoire != null && ' · '}
+                      {viewItem.ejp_formations_pcnc.nb_seance_obligatoire != null && `${viewItem.ejp_formations_pcnc.nb_seance_obligatoire} obligatoire${viewItem.ejp_formations_pcnc.nb_seance_obligatoire > 1 ? 's' : ''}`}
+                    </p>
+                  )}
+                </div>
+              )}
+              {viewItem.note && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Note</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewItem.note}</p>
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
+              </div>
+            </div>
           </div>
         )}
       </Modal>
@@ -772,40 +848,100 @@ function ActivitesEJPTab() {
       )}
 
       {/* Modal Vue activité */}
-      <Modal open={viewModal} onClose={() => setViewModal(false)} title={`Activité — ${viewItem?.code_activite}`} size="lg">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title="" size="lg">
         {viewItem && (
-          <div className="space-y-4 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <div><span className="text-slate-400 text-xs">Code</span><p className="font-mono text-purple-700">{viewItem.code_activite}</p></div>
-              <div><span className="text-slate-400 text-xs">Date</span><p>{fmtDate(viewItem.date_activite)}</p></div>
-              <div><span className="text-slate-400 text-xs">Type rencontre</span><p>{viewItem.ejp_types_rencontre?.nom || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Durée</span><p>{calcDuree(viewItem.heure_debut, viewItem.heure_fin)}</p></div>
-              <div><span className="text-slate-400 text-xs">Heure début</span><p>{viewItem.heure_debut || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Heure fin</span><p>{viewItem.heure_fin || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Thème</span><p>{viewItem.theme || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Prédicateur</span><p>{viewItem.predicateur || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Modérateur</span><p>{viewItem.moderateur || '—'}</p></div>
-              <div><span className="text-slate-400 text-xs">Hommes</span><p>{viewItem.hommes}</p></div>
-              <div><span className="text-slate-400 text-xs">Femmes</span><p>{viewItem.femmes}</p></div>
-              <div><span className="text-slate-400 text-xs">Total participants</span><p className="font-semibold">{viewItem.total_participants}</p></div>
-              <div><span className="text-slate-400 text-xs">Visiteurs</span><p>{viewItem.visiteurs}</p></div>
-              <div><span className="text-slate-400 text-xs">Comptage</span><p>{viewItem.comptage}</p></div>
-              <div><span className="text-slate-400 text-xs">Prière du salut</span><p>{viewItem.priere_salut ? 'Oui' : 'Non'}</p></div>
-              <div><span className="text-slate-400 text-xs">Sainte-Cène</span><p>{viewItem.sainte_cene ? 'Oui' : 'Non'}</p></div>
-            </div>
-            {viewItem.notes && <div><span className="text-slate-400 text-xs">Notes</span><p className="mt-1 text-slate-700">{viewItem.notes}</p></div>}
-            {viewParticipants.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Membres participants ({viewParticipants.length})</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {viewParticipants.map((p: any) => (
-                    <span key={p.id} className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
-                      {p.ejp_membres?.prenom} {p.ejp_membres?.nom}
-                    </span>
-                  ))}
+          <div className="-m-4 -mt-4">
+            {/* Header purple/indigo */}
+            <div className="bg-gradient-to-r from-purple-700 to-indigo-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <Calendar size={24} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Activité EJP</h2>
+                  <p className="text-purple-200 text-sm mt-0.5 font-mono">{viewItem.code_activite}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-purple-100 text-sm">{fmtDate(viewItem.date_activite)}</span>
+                    {viewItem.ejp_types_rencontre?.nom && (
+                      <span className="px-2 py-0.5 bg-white/20 rounded-full text-white text-xs font-medium">
+                        {viewItem.ejp_types_rencontre.nom}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium">Prédicateur</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{viewItem.predicateur || '—'}</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium">Modérateur</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{viewItem.moderateur || '—'}</p>
+                </div>
+                <div className="bg-indigo-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-indigo-400 font-medium flex items-center gap-1"><Clock size={11} /> Heure début</p>
+                  <p className="font-semibold text-indigo-900 text-sm mt-0.5">{viewItem.heure_debut || '—'}</p>
+                </div>
+                <div className="bg-indigo-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-indigo-400 font-medium flex items-center gap-1"><Clock size={11} /> Heure fin</p>
+                  <p className="font-semibold text-indigo-900 text-sm mt-0.5">{viewItem.heure_fin || '—'}</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium">Durée</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{calcDuree(viewItem.heure_debut, viewItem.heure_fin)}</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-purple-400 font-medium">Visiteurs</p>
+                  <p className="font-semibold text-purple-900 text-sm mt-0.5">{viewItem.visiteurs || 0}</p>
+                </div>
+              </div>
+              {viewItem.theme && (
+                <div className="bg-indigo-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-indigo-400 font-medium">Thème</p>
+                  <p className="font-semibold text-indigo-900 text-sm mt-0.5 italic">"{viewItem.theme}"</p>
+                </div>
+              )}
+              {/* Stats présence */}
+              <div className="grid grid-cols-4 gap-2 bg-purple-50 rounded-xl p-3 text-center">
+                <div><p className="text-xl font-bold text-blue-600">{viewItem.hommes}</p><p className="text-xs text-purple-400">Hommes</p></div>
+                <div><p className="text-xl font-bold text-pink-500">{viewItem.femmes}</p><p className="text-xs text-purple-400">Femmes</p></div>
+                <div><p className="text-xl font-bold text-purple-700">{viewItem.total_participants}</p><p className="text-xs text-purple-400">Total</p></div>
+                <div><p className="text-xl font-bold text-green-600">{viewItem.comptage || 0}</p><p className="text-xs text-purple-400">Comptage</p></div>
+              </div>
+              {/* Badges */}
+              {(viewItem.priere_salut || viewItem.sainte_cene) && (
+                <div className="flex gap-2 flex-wrap">
+                  {viewItem.priere_salut && <span className="badge bg-green-100 text-green-700">Prière du salut</span>}
+                  {viewItem.sainte_cene && <span className="badge bg-purple-100 text-purple-700">Sainte-Cène</span>}
+                </div>
+              )}
+              {/* Membres participants */}
+              {viewParticipants.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Membres participants ({viewParticipants.length})</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewParticipants.map((p: any) => (
+                      <span key={p.id} className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
+                        {p.ejp_membres?.prenom} {p.ejp_membres?.nom}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewItem.notes && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Notes</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewItem.notes}</p>
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
+              </div>
+            </div>
           </div>
         )}
       </Modal>

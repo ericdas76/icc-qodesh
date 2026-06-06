@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { Plus, Edit, Trash2, Loader, Eye, FileText, FileSpreadsheet, Church } from 'lucide-react'
+import { Plus, Edit, Trash2, Loader, Eye, FileText, FileSpreadsheet, Church, Calendar, Clock, Users } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
@@ -339,34 +339,71 @@ export default function ActivitesCelebration() {
       </Modal>
 
       {/* Modal Visualiser */}
-      <Modal open={viewModal} onClose={() => setViewModal(false)} title="Détail culte" size="md">
+      <Modal open={viewModal} onClose={() => setViewModal(false)} title="" size="md">
         {viewItem && (
-          <div className="space-y-3 text-sm">
-            <p className="font-bold text-slate-900 text-base">
-              {format(new Date(viewItem.date_activite), 'EEEE d MMMM yyyy', { locale: fr })}
-            </p>
-            {viewItem.theme && <p className="text-blue-600 italic">"{viewItem.theme}"</p>}
-            <div className="grid grid-cols-2 gap-3">
-              <div><span className="label">Prédicateur</span><p>{viewItem.predicateur || '—'}</p></div>
-              <div><span className="label">Modérateur</span><p>{viewItem.moderateur || '—'}</p></div>
-              <div><span className="label">Heure début</span><p>{viewItem.heure_debut || '—'}</p></div>
-              <div><span className="label">Heure fin</span><p>{viewItem.heure_fin || '—'}</p></div>
-              <div><span className="label">Durée</span><p>{viewItem.duree_minutes ? `${viewItem.duree_minutes} min` : '—'}</p></div>
-              <div><span className="label">Visiteurs</span><p>{viewItem.visiteurs || 0}</p></div>
+          <div className="-m-4 -mt-4">
+            {/* Header yellow/gold */}
+            <div className="bg-gradient-to-r from-yellow-500 to-orange-600 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <Church size={24} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">
+                    {format(new Date(viewItem.date_activite), 'EEEE d MMMM yyyy', { locale: fr })}
+                  </h2>
+                  {viewItem.theme && <p className="text-yellow-100 text-sm italic mt-0.5">"{viewItem.theme}"</p>}
+                  <div className="flex items-center gap-2 mt-1">
+                    {viewItem.priere_salut && <span className="px-2 py-0.5 bg-green-400/30 rounded-full text-white text-xs font-medium">Prière du salut</span>}
+                    {viewItem.sainte_cene && <span className="px-2 py-0.5 bg-purple-400/30 rounded-full text-white text-xs font-medium">Sainte-Cène ({viewItem.nombre_sainte_cene})</span>}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-4 gap-3 bg-slate-50 rounded p-3 text-center">
-              <div><p className="text-xl font-bold text-blue-600">{viewItem.hommes}</p><p className="text-xs text-slate-400">H</p></div>
-              <div><p className="text-xl font-bold text-pink-600">{viewItem.femmes}</p><p className="text-xs text-slate-400">F</p></div>
-              <div><p className="text-xl font-bold text-amber-600">{viewItem.enfants}</p><p className="text-xs text-slate-400">E</p></div>
-              <div><p className="text-xl font-bold text-slate-900">{viewItem.total_participants}</p><p className="text-xs text-slate-400">Total</p></div>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {viewItem.priere_salut && <span className="badge bg-green-100 text-green-700">Prière du salut</span>}
-              {viewItem.sainte_cene && <span className="badge bg-purple-100 text-purple-700">Sainte-Cène ({viewItem.nombre_sainte_cene})</span>}
-            </div>
-            {viewItem.notes && <div><span className="label">Notes</span><p>{viewItem.notes}</p></div>}
-            <div className="flex justify-end pt-2">
-              <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-yellow-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-yellow-500 font-medium flex items-center gap-1"><Users size={11} /> Prédicateur</p>
+                  <p className="font-semibold text-yellow-900 text-sm mt-0.5">{viewItem.predicateur || '—'}</p>
+                </div>
+                <div className="bg-yellow-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-yellow-500 font-medium flex items-center gap-1"><Users size={11} /> Modérateur</p>
+                  <p className="font-semibold text-yellow-900 text-sm mt-0.5">{viewItem.moderateur || '—'}</p>
+                </div>
+                <div className="bg-orange-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-orange-400 font-medium flex items-center gap-1"><Clock size={11} /> Heure début</p>
+                  <p className="font-semibold text-orange-900 text-sm mt-0.5">{viewItem.heure_debut || '—'}</p>
+                </div>
+                <div className="bg-orange-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-orange-400 font-medium flex items-center gap-1"><Clock size={11} /> Heure fin</p>
+                  <p className="font-semibold text-orange-900 text-sm mt-0.5">{viewItem.heure_fin || '—'}</p>
+                </div>
+                <div className="bg-yellow-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-yellow-500 font-medium">Durée</p>
+                  <p className="font-semibold text-yellow-900 text-sm mt-0.5">{viewItem.duree_minutes ? `${viewItem.duree_minutes} min` : '—'}</p>
+                </div>
+                <div className="bg-yellow-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-yellow-500 font-medium">Visiteurs</p>
+                  <p className="font-semibold text-yellow-900 text-sm mt-0.5">{viewItem.visiteurs || 0}</p>
+                </div>
+              </div>
+              {/* Statistiques présence */}
+              <div className="grid grid-cols-4 gap-2 bg-yellow-50 rounded-xl p-3 text-center">
+                <div><p className="text-xl font-bold text-blue-600">{viewItem.hommes}</p><p className="text-xs text-yellow-500">Hommes</p></div>
+                <div><p className="text-xl font-bold text-pink-600">{viewItem.femmes}</p><p className="text-xs text-yellow-500">Femmes</p></div>
+                <div><p className="text-xl font-bold text-amber-600">{viewItem.enfants}</p><p className="text-xs text-yellow-500">Enfants</p></div>
+                <div><p className="text-xl font-bold text-slate-800">{viewItem.total_participants}</p><p className="text-xs text-yellow-500">Total</p></div>
+              </div>
+              {viewItem.notes && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Notes</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewItem.notes}</p>
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
+              </div>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit2, Loader, Download, Eye, Users, Baby } from 'lucide-react'
+import { Plus, Edit2, Loader, Download, Eye, Users, Baby, Calendar, Phone, GraduationCap, User, Clock } from 'lucide-react'
 import Modal from '../components/Modal'
 import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
@@ -711,27 +711,67 @@ export default function ImpactJuniorPage() {
       <Modal
         isOpen={!!enfantViewing}
         onClose={() => setEnfantViewing(null)}
-        title="Fiche enfant"
+        title=""
+        size="md"
       >
         {enfantViewing && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-4">
-              <div><span className="label">Prénom</span><p className="font-medium">{enfantViewing.prenom}</p></div>
-              <div><span className="label">Nom</span><p className="font-medium">{enfantViewing.nom}</p></div>
-              <div>
-                <span className="label">Date de naissance</span>
-                <p>{enfantViewing.date_naissance ? format(new Date(enfantViewing.date_naissance), 'dd/MM/yyyy') : '-'}</p>
+          <div className="-m-4 -mt-4">
+            {/* Header rose/pink */}
+            <div className="bg-gradient-to-r from-pink-500 to-rose-600 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xl font-bold text-white shrink-0">
+                  {enfantViewing.prenom?.[0]?.toUpperCase()}{enfantViewing.nom?.[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">{enfantViewing.prenom} {enfantViewing.nom}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-pink-100 text-sm flex items-center gap-1">
+                      <Baby size={14} /> {calcAge(enfantViewing.date_naissance)}
+                    </span>
+                    {enfantViewing.classe_scolaire && (
+                      <span className="px-2 py-0.5 bg-white/20 rounded-full text-white text-xs font-medium">
+                        {enfantViewing.classe_scolaire}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div><span className="label">Âge</span><p>{calcAge(enfantViewing.date_naissance)}</p></div>
-              <div><span className="label">Parent / Tuteur</span><p>{enfantViewing.nom_parent_tuteur || '-'}</p></div>
-              <div><span className="label">Téléphone parent</span><p>{enfantViewing.telephone_parent || '-'}</p></div>
-              <div><span className="label">Classe scolaire</span><p>{enfantViewing.classe_scolaire || '-'}</p></div>
             </div>
-            {enfantViewing.notes && (
-              <div><span className="label">Notes</span><p className="text-gray-600 mt-1">{enfantViewing.notes}</p></div>
-            )}
-            <div className="flex justify-end pt-2">
-              <button onClick={() => setEnfantViewing(null)} className="btn-secondary">Fermer</button>
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-pink-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-pink-400 font-medium flex items-center gap-1"><Calendar size={11} /> Date de naissance</p>
+                  <p className="font-semibold text-pink-900 text-sm mt-0.5">
+                    {enfantViewing.date_naissance ? format(new Date(enfantViewing.date_naissance), 'dd/MM/yyyy') : '—'}
+                  </p>
+                </div>
+                <div className="bg-pink-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-pink-400 font-medium flex items-center gap-1"><Clock size={11} /> Âge</p>
+                  <p className="font-semibold text-pink-900 text-sm mt-0.5">{calcAge(enfantViewing.date_naissance)}</p>
+                </div>
+                <div className="bg-rose-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-rose-400 font-medium flex items-center gap-1"><User size={11} /> Parent / Tuteur</p>
+                  <p className="font-semibold text-rose-900 text-sm mt-0.5">{enfantViewing.nom_parent_tuteur || '—'}</p>
+                </div>
+                <div className="bg-rose-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-rose-400 font-medium flex items-center gap-1"><Phone size={11} /> Téléphone parent</p>
+                  <p className="font-semibold text-rose-900 text-sm mt-0.5">{enfantViewing.telephone_parent || '—'}</p>
+                </div>
+                <div className="bg-pink-50 rounded-xl px-3 py-2.5 col-span-2">
+                  <p className="text-xs text-pink-400 font-medium flex items-center gap-1"><GraduationCap size={11} /> Classe scolaire</p>
+                  <p className="font-semibold text-pink-900 text-sm mt-0.5">{enfantViewing.classe_scolaire || '—'}</p>
+                </div>
+              </div>
+              {enfantViewing.notes && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Notes</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{enfantViewing.notes}</p>
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setEnfantViewing(null)} className="btn-secondary">Fermer</button>
+              </div>
             </div>
           </div>
         )}
@@ -904,68 +944,84 @@ export default function ImpactJuniorPage() {
       <Modal
         isOpen={!!culteViewing}
         onClose={() => setCulteViewing(null)}
-        title="Détail culte Impact Junior"
+        title=""
+        size="md"
       >
         {culteViewing && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="label">N° Culte</span>
-                <p className="font-bold text-yellow-700">#{culteViewing.ordre}</p>
-              </div>
-              <div>
-                <span className="label">Date</span>
-                <p className="font-medium">
-                  {culteViewing.date_activite ? format(new Date(culteViewing.date_activite), 'EEEE dd MMMM yyyy', { locale: fr }) : '-'}
-                </p>
-              </div>
-              <div>
-                <span className="label">Heure début</span>
-                <p>{culteViewing.heure_debut || '-'}</p>
-              </div>
-              <div>
-                <span className="label">Heure fin</span>
-                <p>{culteViewing.heure_fin || '-'}</p>
-              </div>
-              <div>
-                <span className="label">Durée</span>
-                <p>{culteViewing.duree_minutes ? `${culteViewing.duree_minutes} min` : '-'}</p>
-              </div>
-              <div>
-                <span className="label">Moniteurs (H)</span>
-                <p>{culteViewing.nb_moniteurs ?? 0}</p>
-              </div>
-              <div>
-                <span className="label">Monitrices (F)</span>
-                <p>{culteViewing.nb_monitrices ?? 0}</p>
-              </div>
-              <div>
-                <span className="label">Garçons</span>
-                <p>{culteViewing.garcons ?? 0}</p>
-              </div>
-              <div>
-                <span className="label">Filles</span>
-                <p>{culteViewing.filles ?? 0}</p>
-              </div>
-              <div>
-                <span className="label">Total enfants</span>
-                <p className="font-bold text-yellow-700">
-                  {(parseInt(culteViewing.garcons) || 0) + (parseInt(culteViewing.filles) || 0)}
-                </p>
-              </div>
-              <div>
-                <span className="label">Visiteurs</span>
-                <p>{culteViewing.visiteurs ?? 0}</p>
+          <div className="-m-4 -mt-4">
+            {/* Header yellow/amber */}
+            <div className="bg-gradient-to-r from-yellow-500 to-amber-600 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xl font-bold text-white shrink-0">
+                  #{culteViewing.ordre}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Culte Impact Junior</h2>
+                  <p className="text-yellow-100 text-sm mt-0.5">
+                    {culteViewing.date_activite ? format(new Date(culteViewing.date_activite), 'EEEE dd MMMM yyyy', { locale: fr }) : '—'}
+                  </p>
+                  {culteViewing.theme && (
+                    <p className="text-yellow-200 text-xs mt-0.5 italic">"{culteViewing.theme}"</p>
+                  )}
+                </div>
               </div>
             </div>
-            {culteViewing.theme && (
-              <div><span className="label">Thème</span><p className="font-medium">{culteViewing.theme}</p></div>
-            )}
-            {culteViewing.comptage && (
-              <div><span className="label">Comptage / Observations</span><p className="text-gray-600">{culteViewing.comptage}</p></div>
-            )}
-            <div className="flex justify-end pt-2">
-              <button onClick={() => setCulteViewing(null)} className="btn-secondary">Fermer</button>
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+              {/* Horaires */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-yellow-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-yellow-500 font-medium">Heure début</p>
+                  <p className="font-semibold text-yellow-900 text-sm mt-0.5">{culteViewing.heure_debut || '—'}</p>
+                </div>
+                <div className="bg-yellow-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-yellow-500 font-medium">Heure fin</p>
+                  <p className="font-semibold text-yellow-900 text-sm mt-0.5">{culteViewing.heure_fin || '—'}</p>
+                </div>
+                <div className="bg-yellow-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-yellow-500 font-medium">Durée</p>
+                  <p className="font-semibold text-yellow-900 text-sm mt-0.5">{culteViewing.duree_minutes ? `${culteViewing.duree_minutes} min` : '—'}</p>
+                </div>
+              </div>
+              {/* Moniteurs */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-amber-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-amber-500 font-medium">Moniteurs (H)</p>
+                  <p className="font-semibold text-amber-900 text-sm mt-0.5">{culteViewing.nb_moniteurs ?? 0}</p>
+                </div>
+                <div className="bg-amber-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-amber-500 font-medium">Monitrices (F)</p>
+                  <p className="font-semibold text-amber-900 text-sm mt-0.5">{culteViewing.nb_monitrices ?? 0}</p>
+                </div>
+              </div>
+              {/* Statistiques enfants */}
+              <div className="grid grid-cols-4 gap-2 bg-yellow-50 rounded-xl p-3 text-center">
+                <div>
+                  <p className="text-xl font-bold text-blue-600">{culteViewing.garcons ?? 0}</p>
+                  <p className="text-xs text-yellow-500">Garçons</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-pink-500">{culteViewing.filles ?? 0}</p>
+                  <p className="text-xs text-yellow-500">Filles</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-yellow-700">{(parseInt(culteViewing.garcons) || 0) + (parseInt(culteViewing.filles) || 0)}</p>
+                  <p className="text-xs text-yellow-500">Total</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-green-600">{culteViewing.visiteurs ?? 0}</p>
+                  <p className="text-xs text-yellow-500">Visiteurs</p>
+                </div>
+              </div>
+              {culteViewing.comptage && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Comptage / Observations</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{culteViewing.comptage}</p>
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setCulteViewing(null)} className="btn-secondary">Fermer</button>
+              </div>
             </div>
           </div>
         )}

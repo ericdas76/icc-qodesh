@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, UserX, Download, FileText, Users, Hash, Building2, Phone, Mail, Calendar, Tag, MapPin, AlertTriangle } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
@@ -455,40 +455,110 @@ export default function MembresPage() {
 
       {/* Modal Visualiser */}
       <Modal isOpen={viewModal} onClose={() => setViewModal(false)}
-        title={`Fiche membre — ${viewItem?.personnes?.prenom} ${viewItem?.personnes?.nom}`} size="md">
+        title="" size="md">
         {viewItem && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                ['N° Membre', viewItem.numero_membre || '—'],
-                ['Catégorie', viewItem.categorie || '—'],
-                ['Origine', viewItem.personnes?.origine || '—'],
-                ['Département', viewItem.departement || '—'],
-                ['Date adhésion', viewItem.date_adhesion ? format(new Date(viewItem.date_adhesion), 'dd MMMM yyyy', { locale: fr }) : '—'],
-                ['Téléphone', viewItem.personnes?.telephone || '—'],
-                ['Email', viewItem.personnes?.email || '—'],
-              ].map(([label, val]) => (
-                <div key={label}>
-                  <p className="text-xs text-gray-500 font-medium">{label}</p>
-                  <p className="text-gray-900">{val}</p>
+          <div className="-m-4 -mt-4">
+
+            {/* ── En-tête coloré ── */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xl font-bold text-white shrink-0">
+                  {viewItem.personnes?.prenom?.[0]?.toUpperCase()}{viewItem.personnes?.nom?.[0]?.toUpperCase()}
                 </div>
-              ))}
+                <div>
+                  <h2 className="text-xl font-bold text-white">
+                    {viewItem.personnes?.prenom} {viewItem.personnes?.nom}
+                  </h2>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {viewItem.statut && (
+                      <span className="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full font-medium">
+                        {viewItem.statut}
+                      </span>
+                    )}
+                    {viewItem.numero_membre && (
+                      <span className="flex items-center gap-1 bg-white/20 text-white text-xs font-mono px-2.5 py-0.5 rounded-full">
+                        <Hash size={10} /> {viewItem.numero_membre}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {/* ── Section Membre ── */}
+            <div className="px-5 pt-4 pb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <Tag size={11} /> Informations membre
+              </p>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="bg-blue-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-blue-400 font-medium mb-0.5">Catégorie</p>
+                  <p className="font-semibold text-blue-900 text-sm">{viewItem.categorie || '—'}</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-blue-400 font-medium mb-0.5 flex items-center gap-1"><Building2 size={10} /> Département</p>
+                  <p className="font-semibold text-blue-900 text-sm">{viewItem.departement || '—'}</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-blue-400 font-medium mb-0.5 flex items-center gap-1"><MapPin size={10} /> Origine</p>
+                  <p className="font-semibold text-blue-900 text-sm">{viewItem.personnes?.origine || '—'}</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-blue-400 font-medium mb-0.5 flex items-center gap-1"><Calendar size={10} /> Date adhésion</p>
+                  <p className="font-semibold text-blue-900 text-sm">
+                    {viewItem.date_adhesion ? format(new Date(viewItem.date_adhesion), 'dd MMM yyyy', { locale: fr }) : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Section Contact ── */}
+            <div className="px-5 pb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <Phone size={11} /> Contact
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                <div className="bg-green-50 rounded-xl px-3 py-2.5 flex items-center gap-3">
+                  <Phone size={14} className="text-green-400 shrink-0" />
+                  <div>
+                    <p className="text-xs text-green-500 font-medium">Téléphone</p>
+                    <p className="font-semibold text-green-900 text-sm">{viewItem.personnes?.telephone || '—'}</p>
+                  </div>
+                </div>
+                <div className="bg-green-50 rounded-xl px-3 py-2.5 flex items-center gap-3">
+                  <Mail size={14} className="text-green-400 shrink-0" />
+                  <div>
+                    <p className="text-xs text-green-500 font-medium">Email</p>
+                    <p className="font-semibold text-green-900 text-sm break-all">{viewItem.personnes?.email || '—'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Libération (si applicable) ── */}
             {viewItem.date_liberation && (
-              <div className="bg-orange-50 border border-orange-200 rounded p-3">
-                <p className="text-xs text-orange-600 font-semibold mb-1">Libération</p>
-                <p>Date : {format(new Date(viewItem.date_liberation), 'dd MMMM yyyy', { locale: fr })}</p>
-                {viewItem.motif_liberation && <p>Motif : {viewItem.motif_liberation}</p>}
+              <div className="px-5 pb-3">
+                <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                  <AlertTriangle size={14} className="text-orange-500 mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <p className="text-xs text-orange-600 font-semibold mb-0.5">Libération</p>
+                    <p className="text-orange-800">Date : {format(new Date(viewItem.date_liberation), 'dd MMMM yyyy', { locale: fr })}</p>
+                    {viewItem.motif_liberation && <p className="text-orange-700">Motif : {viewItem.motif_liberation}</p>}
+                  </div>
+                </div>
               </div>
             )}
-            <div className="text-xs text-gray-400 border-t pt-3">
-              Créé le {format(new Date(viewItem.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
+
+            {/* ── Pied ── */}
+            <div className="px-5 pb-4 flex items-center justify-between border-t border-gray-100 pt-3">
+              <p className="text-xs text-gray-400">
+                Créé le {format(new Date(viewItem.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
+              </p>
+              <button onClick={() => setViewModal(false)} className="btn-secondary text-sm">Fermer</button>
             </div>
+
           </div>
         )}
-        <div className="flex justify-end mt-4">
-          <button onClick={() => setViewModal(false)} className="btn-secondary">Fermer</button>
-        </div>
       </Modal>
 
       {/* Confirm Ajouter */}
