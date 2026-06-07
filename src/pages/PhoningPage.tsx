@@ -18,8 +18,9 @@ interface PersonneAvecSuivi extends Personne {
   prochain_contact?: string
 }
 
-// Statuts exclus du phoning (personnes déjà intégrées)
-const STATUTS_EXCLUS_PHONING = ['star', 'referent', 'référent', 'aide', 'departement', 'libere']
+// Les personnes à exclure du phoning sont celles qui ont un enregistrement actif
+// dans la table `membres` (référents, stars, aides, département… sont tous des membres)
+// → on récupère leurs personne_id et on les filtre côté JS (même pattern que PersonnesPage)
 
 // Colonnes export historique
 const COLS_HISTORIQUE = [
@@ -77,27 +78,36 @@ export default function PhoningPage() {
     setLoading(true)
     const today = new Date().toISOString().split('T')[0]
 
+    // Étape 1 : récupérer tous les personne_id qui ont un membre actif
+    // (référents, stars, aides, département… sont TOUS dans la table membres)
+    const { data: membresActifs } = await supabase
+      .from('membres')
+      .select('personne_id')
+      .eq('actif', true)
+    const membresIds = new Set((membresActifs || []).map((m: any) => m.personne_id))
+
+    // Étape 2 : requête personnes sans filtre statut
     let query = supabase.from('personnes').select(`
       *, 
       interactions_phoning(id, statut_contact, issue, prochain_contact, date_interaction, type_interaction)
     `)
       .eq('actif', true)
-      // Exclure les personnes déjà intégrées (star, référent, aide, département, libéré)
-      // Syntaxe Supabase correcte : valeurs sans guillemets dans la liste
-      .not('statut', 'in', `(${STATUTS_EXCLUS_PHONING.join(',')})`)
       .order('created_at', { ascending: false })
 
     if (search) query = query.or(`nom.ilike.%${search}%,prenom.ilike.%${search}%`)
 
     const { data } = await query
 
-    let filtered = (data || []).map((p: any) => {
-      const inters = p.interactions_phoning || []
-      const derniere = inters.sort(
-        (a: any, b: any) => new Date(b.date_interaction).getTime() - new Date(a.date_interaction).getTime()
-      )[0]
-      return { ...p, derniere_interaction: derniere, prochain_contact: derniere?.prochain_contact }
-    })
+    let filtered = (data || [])
+      // Étape 3 : exclure les personnes qui sont déjà membres actifs
+      .filter((p: any) => !membresIds.has(p.id))
+      .map((p: any) => {
+        const inters = p.interactions_phoning || []
+        const derniere = inters.sort(
+          (a: any, b: any) => new Date(b.date_interaction).getTime() - new Date(a.date_interaction).getTime()
+        )[0]
+        return { ...p, derniere_interaction: derniere, prochain_contact: derniere?.prochain_contact }
+      })
 
     if (activeTab === 'aujourd_hui') {
       filtered = filtered.filter((p: any) => p.prochain_contact === today || !p.derniere_interaction)
