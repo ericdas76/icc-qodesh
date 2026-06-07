@@ -26,6 +26,7 @@ const COLS_EXPORT = [
   { header: 'Modérateur', key: 'moderateur', width: 22 },
   { header: 'Hommes', key: 'hommes', width: 10 },
   { header: 'Femmes', key: 'femmes', width: 10 },
+  { header: 'Nb Adultes', key: 'nb_adultes', width: 12 },
   { header: 'Enfants', key: 'enfants', width: 10 },
   { header: 'Total', key: 'total_participants', width: 10 },
   { header: 'Visiteurs', key: 'visiteurs', width: 10 },
@@ -155,9 +156,11 @@ export default function ActivitesCelebration() {
 
   const paginated = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const doExportPDF = () => exportPDF('Cultes — Célébration', COLS_EXPORT, items,
+  const itemsWithAdultes = items.map(a => ({ ...a, nb_adultes: (a.hommes || 0) + (a.femmes || 0) }))
+
+  const doExportPDF = () => exportPDF('Cultes — Célébration', COLS_EXPORT, itemsWithAdultes,
     `${items.length} culte(s)`)
-  const doExportExcel = () => exportExcel('Celebration', COLS_EXPORT, items, 'Célébration')
+  const doExportExcel = () => exportExcel('Celebration', COLS_EXPORT, itemsWithAdultes, 'Célébration')
 
   return (
     <div>
@@ -219,10 +222,11 @@ export default function ActivitesCelebration() {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mt-3">
+              <div className="grid grid-cols-3 md:grid-cols-7 gap-3 mt-3">
                 {[
                   { label: 'Hommes', value: a.hommes, color: 'text-blue-600' },
                   { label: 'Femmes', value: a.femmes, color: 'text-pink-600' },
+                  { label: 'Nb Adultes', value: (a.hommes || 0) + (a.femmes || 0), color: 'text-indigo-600' },
                   { label: 'Enfants', value: a.enfants, color: 'text-amber-600' },
                   { label: 'Total', value: a.total_participants, color: 'text-slate-900' },
                   { label: 'Visiteurs', value: a.visiteurs, color: 'text-green-600' },
@@ -389,9 +393,10 @@ export default function ActivitesCelebration() {
                 </div>
               </div>
               {/* Statistiques présence */}
-              <div className="grid grid-cols-4 gap-2 bg-yellow-50 rounded-xl p-3 text-center">
+              <div className="grid grid-cols-5 gap-2 bg-yellow-50 rounded-xl p-3 text-center">
                 <div><p className="text-xl font-bold text-blue-600">{viewItem.hommes}</p><p className="text-xs text-yellow-500">Hommes</p></div>
                 <div><p className="text-xl font-bold text-pink-600">{viewItem.femmes}</p><p className="text-xs text-yellow-500">Femmes</p></div>
+                <div><p className="text-xl font-bold text-indigo-600">{(viewItem.hommes || 0) + (viewItem.femmes || 0)}</p><p className="text-xs text-yellow-500">Nb Adultes</p></div>
                 <div><p className="text-xl font-bold text-amber-600">{viewItem.enfants}</p><p className="text-xs text-yellow-500">Enfants</p></div>
                 <div><p className="text-xl font-bold text-slate-800">{viewItem.total_participants}</p><p className="text-xs text-yellow-500">Total</p></div>
               </div>
