@@ -211,7 +211,7 @@ export default function DashboardPage() {
   )
 
   const statCards = [
-    { label: 'Personnes suivies', value: stats.total_personnes, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', onClick: undefined },
+    { label: 'Nombre personnes actives', value: stats.total_personnes, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', onClick: undefined },
     { label: 'Arrivants ce mois', value: stats.arrivants_ce_mois, icon: UserPlus, color: 'text-green-600', bg: 'bg-green-50', onClick: undefined },
     { label: 'Membres actifs', value: stats.membres_actifs, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50', onClick: undefined },
     { label: 'Familles d\'Impact', value: stats.total_fi, icon: Home, color: 'text-amber-600', bg: 'bg-amber-50', onClick: undefined },
