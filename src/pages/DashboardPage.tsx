@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Users, UserPlus, Phone, Home, BookOpen, AlertCircle, TrendingUp, CalendarOff, X, Building2, Church, Star, GraduationCap, Layout } from 'lucide-react'
+import { Users, UserPlus, Phone, Home, BookOpen, AlertCircle, TrendingUp, CalendarOff, X, Building2, Church, Star, GraduationCap, Layout, Layers } from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
 import { format, differenceInDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -20,6 +20,7 @@ interface Stats {
   ejp_activites: number
   promotions_en_cours: number
   classes_ouvertes: number
+  seances_formation_pluri: number
 }
 
 interface ClasseParType {
@@ -53,7 +54,8 @@ export default function DashboardPage() {
     ejp_membres: 0,
     ejp_activites: 0,
     promotions_en_cours: 0,
-    classes_ouvertes: 0
+    classes_ouvertes: 0,
+    seances_formation_pluri: 0
   })
   const [classesParType, setClassesParType] = useState<ClasseParType[]>([])
   const [classesDetailModal, setClassesDetailModal] = useState(false)
@@ -91,6 +93,7 @@ export default function DashboardPage() {
       { count: ejpActivites },
       { count: promotionsEnCours },
       { count: classesOuvertes },
+      { count: seancesFormPluri },
       { data: arrivantsList },
       { data: tachesList },
       { data: journal },
@@ -111,6 +114,7 @@ export default function DashboardPage() {
       supabase.from('ejp_activites').select('*', { count: 'exact', head: true }).eq('actif', true),
       supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('actif', true),
       supabase.from('formations').select('*', { count: 'exact', head: true }).eq('cloture', false),
+      supabase.from('seances_formation_pluri').select('*', { count: 'exact', head: true }).eq('actif', true),
       supabase.from('personnes').select('id, nom, prenom, statut, created_at, nationalite').eq('actif', true).order('created_at', { ascending: false }).limit(5),
       supabase.from('taches_suivi').select('*, personnes(nom, prenom)').eq('statut', 'en_attente').lt('echeance', today).order('echeance').limit(5),
       supabase.from('journal_evenements').select('*, profils(nom, prenom)').order('created_at', { ascending: false }).limit(8),
@@ -133,7 +137,8 @@ export default function DashboardPage() {
       ejp_membres: ejpMembres || 0,
       ejp_activites: ejpActivites || 0,
       promotions_en_cours: promotionsEnCours || 0,
-      classes_ouvertes: classesOuvertes || 0
+      classes_ouvertes: classesOuvertes || 0,
+      seances_formation_pluri: seancesFormPluri || 0
     })
     setArrivants(arrivantsList || [])
     setTachesEnRetard(tachesList || [])
@@ -246,6 +251,7 @@ export default function DashboardPage() {
       onClick: () => setClassesDetailModal(true),
       clickable: stats.classes_ouvertes > 0
     },
+    { label: 'Nb Formation Pluri', value: stats.seances_formation_pluri, icon: Layers, color: 'text-rose-600', bg: 'bg-rose-50', onClick: undefined },
   ]
 
   return (
