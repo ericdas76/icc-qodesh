@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, Edit, Trash2, Loader, Eye, FileSpreadsheet, Users, Calendar, X, Check, Phone, Mail, MapPin, Globe, Clock } from 'lucide-react'
+import { Plus, Edit, Trash2, Loader, Eye, FileSpreadsheet, Users, Calendar, X, Check, Phone, Mail, MapPin, Globe, Clock, UserPlus, UserCheck } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
@@ -37,6 +37,18 @@ function calcDuree(debut: string | null, fin: string | null): string {
 function fmtDate(d: string | null): string {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('fr-FR')
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ParticipantExterne {
+  id?: string
+  prenom: string
+  nom: string
+  sexe: string
+  age: string
+  telephone: string
+  est_membre: false
 }
 
 // ─── Onglet Membres EJP ───────────────────────────────────────────────────────
@@ -579,6 +591,10 @@ const EMPTY_ACTIVITE = {
   membres_ids: [] as string[]
 }
 
+const EMPTY_EXTERNE: ParticipantExterne = {
+  prenom: '', nom: '', sexe: '', age: '', telephone: '', est_membre: false
+}
+
 const COLS_ACTIVITES = [
   { header: 'Code', key: 'code_activite', width: 16 },
   { header: 'Date', key: '_date_fmt', width: 14 },
@@ -599,6 +615,420 @@ const COLS_ACTIVITES = [
   { header: 'Notes', key: 'notes', width: 30 },
 ]
 
+// ─── Modal Participants ────────────────────────────────────────────────────────
+
+interface ParticipantsModalProps {
+  open: boolean
+  onClose: () => void
+  activite: any
+  membresList: any[]
+  onSaved: () => void
+}
+
+function ParticipantsModal({ open, onClose, activite, membresList, onSaved }: ParticipantsModalProps) {
+  const [sectionTab, setSectionTab] = useState<'membres' | 'externe'>('membres')
+  const [selectedMembres, setSelectedMembres] = useState<string[]>([])
+  const [existingParticipants, setExistingParticipants] = useState<any[]>([])
+  const [recherche, setRecherche] = useState('')
+  const [formeExterne, setFormeExterne] = useState<ParticipantExterne>({ ...EMPTY_EXTERNE })
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  // Charger les participants existants à l'ouverture
+  useEffect(() => {
+    if (open && activite) {
+      loadParticipants()
+    }
+  }, [open, activite])
+
+  const loadParticipants = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('ejp_activite_participants')
+      .select('*')
+      .eq('activite_id', activite.id)
+      .order('created_at')
+    const parts = data || []
+    setExistingParticipants(parts)
+    // Pré-cocher les membres EJP déjà liés
+    setSelectedMembres(parts.filter((p: any) => p.est_membre && p.membre_id).map((p: any) => p.membre_id))
+    setLoading(false)
+  }
+
+  const toggleMembre = (id: string) => {
+    setSelectedMembres(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  const membresFiltres = useMemo(() => {
+    if (!recherche.trim()) return membresList
+    const q = recherche.toLowerCase()
+    return membresList.filter(m =>
+      m.nom.toLowerCase().includes(q) ||
+      m.prenom.toLowerCase().includes(q) ||
+      (m.code_membre_ejp || '').toLowerCase().includes(q)
+    )
+  }, [membresList, recherche])
+
+  const ajouterExterne = async () => {
+    if (!formeExterne.prenom.trim() || !formeExterne.nom.trim()) {
+      return toast.error('Prénom et nom obligatoires')
+    }
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('ejp_activite_participants').insert({
+        activite_id: activite.id,
+        membre_id: null,
+        prenom: formeExterne.prenom.trim(),
+        nom: formeExterne.nom.trim().toUpperCase(),
+        sexe: formeExterne.sexe || null,
+        age: formeExterne.age ? parseInt(formeExterne.age) : null,
+        telephone: formeExterne.telephone || null,
+        est_membre: false
+      })
+      if (error) throw error
+      toast.success(`${formeExterne.prenom} ${formeExterne.nom} ajouté(e)`)
+      setFormeExterne({ ...EMPTY_EXTERNE })
+      await loadParticipants()
+      await updateComptage()
+    } catch (e: any) {
+      toast.error('Erreur : ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const supprimerParticipant = async (id: string) => {
+    const { error } = await supabase.from('ejp_activite_participants').delete().eq('id', id)
+    if (error) { toast.error('Erreur suppression'); return }
+    await loadParticipants()
+    await updateComptage()
+    toast.success('Participant retiré')
+  }
+
+  const sauvegarderMembres = async () => {
+    setSaving(true)
+    try {
+      // Supprimer les anciens membres EJP liés
+      await supabase
+        .from('ejp_activite_participants')
+        .delete()
+        .eq('activite_id', activite.id)
+        .eq('est_membre', true)
+
+      // Réinsérer les membres cochés avec leurs infos
+      if (selectedMembres.length > 0) {
+        const membresInfos = membresList.filter(m => selectedMembres.includes(m.id))
+        const rows = membresInfos.map(m => ({
+          activite_id: activite.id,
+          membre_id: m.id,
+          prenom: m.prenom,
+          nom: m.nom,
+          sexe: m.sexe || null,
+          age: calcAge(m.date_naissance),
+          telephone: m.telephone1 || null,
+          est_membre: true
+        }))
+        const { error } = await supabase.from('ejp_activite_participants').insert(rows)
+        if (error) throw error
+      }
+
+      toast.success(`${selectedMembres.length} membre(s) EJP enregistré(s)`)
+      await loadParticipants()
+      await updateComptage()
+    } catch (e: any) {
+      toast.error('Erreur : ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const updateComptage = async () => {
+    // Recalculer H/F/Total depuis les participants
+    const { data: parts } = await supabase
+      .from('ejp_activite_participants')
+      .select('sexe')
+      .eq('activite_id', activite.id)
+
+    const hommes = (parts || []).filter((p: any) => p.sexe === 'Homme').length
+    const femmes = (parts || []).filter((p: any) => p.sexe === 'Femme').length
+    const total = (parts || []).length
+
+    await supabase.from('ejp_activites').update({
+      hommes,
+      femmes,
+      total_participants: total,
+      updated_at: new Date().toISOString()
+    }).eq('id', activite.id)
+
+    onSaved()
+  }
+
+  const participantsExternes = existingParticipants.filter(p => !p.est_membre)
+  const participantsMembres = existingParticipants.filter(p => p.est_membre)
+  const totalParticipants = existingParticipants.length
+
+  return (
+    <Modal open={open} onClose={onClose} title="" size="xl">
+      <div className="-m-4 -mt-4">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-700 to-indigo-700 px-6 pt-5 pb-5 rounded-t-xl">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+              <UserPlus size={22} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Participants — {activite?.code_activite}</h2>
+              <p className="text-purple-200 text-sm mt-0.5">{fmtDate(activite?.date_activite)} · {activite?.ejp_types_rencontre?.nom || 'Activité EJP'}</p>
+            </div>
+            <div className="ml-auto text-right">
+              <p className="text-2xl font-bold text-white">{totalParticipants}</p>
+              <p className="text-purple-200 text-xs">participant(s)</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Onglets internes */}
+          <div className="flex gap-2 border-b pb-3">
+            <button
+              onClick={() => setSectionTab('membres')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${sectionTab === 'membres' ? 'bg-purple-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              <UserCheck size={14} /> Membres EJP
+              {participantsMembres.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-xs">{participantsMembres.length}</span>
+              )}
+            </button>
+            <button
+              onClick={() => setSectionTab('externe')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${sectionTab === 'externe' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              <UserPlus size={14} /> Participant externe
+              {participantsExternes.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-xs">{participantsExternes.length}</span>
+              )}
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-700" />
+            </div>
+          ) : (
+            <>
+              {/* ── Section Membres EJP ── */}
+              {sectionTab === 'membres' && (
+                <div className="space-y-3">
+                  {/* Barre de recherche */}
+                  <input
+                    className="input"
+                    placeholder="Rechercher un membre (nom, prénom, code)…"
+                    value={recherche}
+                    onChange={e => setRecherche(e.target.value)}
+                  />
+
+                  {/* Liste checkboxes */}
+                  <div className="border rounded-xl max-h-56 overflow-y-auto divide-y">
+                    {membresFiltres.length === 0 ? (
+                      <p className="p-4 text-xs text-slate-400 text-center">Aucun membre trouvé</p>
+                    ) : (
+                      membresFiltres.map((m: any) => (
+                        <label key={m.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-purple-50 cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={selectedMembres.includes(m.id)}
+                            onChange={() => toggleMembre(m.id)}
+                            className="rounded text-purple-600 w-4 h-4"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-slate-800">{m.prenom} {m.nom}</span>
+                            {m.sexe && <span className="ml-2 text-xs text-slate-400">{m.sexe}</span>}
+                          </div>
+                          <span className="text-xs text-purple-400 font-mono shrink-0">{m.code_membre_ejp}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Résumé sélection */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-slate-500">{selectedMembres.length} membre(s) sélectionné(s)</p>
+                    <button
+                      onClick={sauvegarderMembres}
+                      disabled={saving}
+                      className="btn-primary flex items-center gap-2 text-sm"
+                    >
+                      {saving ? <Loader size={13} className="animate-spin" /> : <Check size={13} />}
+                      Enregistrer la sélection
+                    </button>
+                  </div>
+
+                  {/* Chips membres déjà enregistrés */}
+                  {participantsMembres.length > 0 && (
+                    <div className="bg-purple-50 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-purple-500 mb-2">Membres enregistrés ({participantsMembres.length})</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {participantsMembres.map((p: any) => (
+                          <span key={p.id} className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                            <UserCheck size={11} />
+                            {p.prenom} {p.nom}
+                            <button
+                              onClick={() => supprimerParticipant(p.id)}
+                              className="ml-1 text-purple-400 hover:text-red-500 transition-colors"
+                            >
+                              <X size={11} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Section Participant externe ── */}
+              {sectionTab === 'externe' && (
+                <div className="space-y-4">
+                  {/* Formulaire ajout externe */}
+                  <div className="bg-indigo-50 rounded-xl p-4 space-y-3">
+                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Ajouter un participant externe</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label">Prénom *</label>
+                        <input
+                          className="input"
+                          placeholder="Prénom"
+                          value={formeExterne.prenom}
+                          onChange={e => setFormeExterne(f => ({ ...f, prenom: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Nom *</label>
+                        <input
+                          className="input uppercase"
+                          placeholder="NOM"
+                          value={formeExterne.nom}
+                          onChange={e => setFormeExterne(f => ({ ...f, nom: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Sexe</label>
+                        <select
+                          className="input"
+                          value={formeExterne.sexe}
+                          onChange={e => setFormeExterne(f => ({ ...f, sexe: e.target.value }))}
+                        >
+                          <option value="">— Sélectionner —</option>
+                          <option value="Homme">Homme</option>
+                          <option value="Femme">Femme</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">Âge</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={120}
+                          className="input"
+                          placeholder="Âge"
+                          value={formeExterne.age}
+                          onChange={e => setFormeExterne(f => ({ ...f, age: e.target.value }))}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="label">Téléphone</label>
+                        <input
+                          className="input"
+                          placeholder="Numéro de téléphone"
+                          value={formeExterne.telephone}
+                          onChange={e => setFormeExterne(f => ({ ...f, telephone: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        onClick={ajouterExterne}
+                        disabled={saving}
+                        className="btn-primary flex items-center gap-2 text-sm"
+                      >
+                        {saving ? <Loader size={13} className="animate-spin" /> : <Plus size={13} />}
+                        Ajouter ce participant
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Liste des participants externes */}
+                  {participantsExternes.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 mb-2">Participants externes ({participantsExternes.length})</p>
+                      <div className="space-y-2">
+                        {participantsExternes.map((p: any) => (
+                          <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 bg-slate-50 rounded-xl">
+                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0">
+                              {p.prenom?.[0]?.toUpperCase()}{p.nom?.[0]?.toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-800">{p.prenom} {p.nom}</p>
+                              <p className="text-xs text-slate-400">
+                                {[p.sexe, p.age ? `${p.age} ans` : null, p.telephone].filter(Boolean).join(' · ') || 'Aucune info complémentaire'}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => supprimerParticipant(p.id)}
+                              className="p-1.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                              title="Retirer"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {participantsExternes.length === 0 && (
+                    <p className="text-center text-sm text-slate-400 py-4">Aucun participant externe pour cette activité</p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Récapitulatif comptage */}
+          {existingParticipants.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 bg-purple-50 rounded-xl p-3 text-center border border-purple-100">
+              <div>
+                <p className="text-lg font-bold text-blue-600">
+                  {existingParticipants.filter(p => p.sexe === 'Homme').length}
+                </p>
+                <p className="text-xs text-purple-400">Hommes</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-pink-500">
+                  {existingParticipants.filter(p => p.sexe === 'Femme').length}
+                </p>
+                <p className="text-xs text-purple-400">Femmes</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-purple-700">{totalParticipants}</p>
+                <p className="text-xs text-purple-400">Total</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-1">
+            <button onClick={onClose} className="btn-secondary">Fermer</button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// ─── Composant ActivitesEJPTab ────────────────────────────────────────────────
+
 function ActivitesEJPTab() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -606,6 +1036,8 @@ function ActivitesEJPTab() {
   const [viewModal, setViewModal] = useState(false)
   const [viewItem, setViewItem] = useState<any>(null)
   const [viewParticipants, setViewParticipants] = useState<any[]>([])
+  const [participantsModal, setParticipantsModal] = useState(false)
+  const [participantsActivite, setParticipantsActivite] = useState<any>(null)
   const [editItem, setEditItem] = useState<any>(null)
   const [form, setForm] = useState<any>(EMPTY_ACTIVITE)
   const [saving, setSaving] = useState(false)
@@ -626,7 +1058,7 @@ function ActivitesEJPTab() {
     ] = await Promise.all([
       supabase.from('ejp_activites').select('*, ejp_types_rencontre(nom)').order('date_activite', { ascending: false }),
       supabase.from('ejp_types_rencontre').select('*').eq('actif', true).order('nom'),
-      supabase.from('ejp_membres').select('id, nom, prenom, code_membre_ejp').eq('actif', true).order('nom'),
+      supabase.from('ejp_membres').select('id, nom, prenom, code_membre_ejp, sexe, date_naissance, telephone1').eq('actif', true).order('nom'),
     ])
     setItems(activites || [])
     setTypesRencontre(types || [])
@@ -659,7 +1091,6 @@ function ActivitesEJPTab() {
 
   const openEdit = async (item: any) => {
     setEditItem(item)
-    // Charger les participants
     const { data: parts } = await supabase
       .from('ejp_activite_membres')
       .select('membre_id')
@@ -687,12 +1118,18 @@ function ActivitesEJPTab() {
 
   const openView = async (item: any) => {
     setViewItem(item)
-    const { data: parts } = await supabase
-      .from('ejp_activite_membres')
-      .select('*, ejp_membres(nom, prenom, code_membre_ejp)')
-      .eq('activite_id', item.id)
-    setViewParticipants(parts || [])
+    // Charger les participants (nouvelle table + ancienne table membres)
+    const [{ data: newParts }, { data: oldParts }] = await Promise.all([
+      supabase.from('ejp_activite_participants').select('*').eq('activite_id', item.id).order('created_at'),
+      supabase.from('ejp_activite_membres').select('*, ejp_membres(nom, prenom, code_membre_ejp)').eq('activite_id', item.id),
+    ])
+    setViewParticipants(newParts || [])
     setViewModal(true)
+  }
+
+  const openParticipants = (item: any) => {
+    setParticipantsActivite(item)
+    setParticipantsModal(true)
   }
 
   const toggleMembre = (id: string) => {
@@ -745,7 +1182,7 @@ function ActivitesEJPTab() {
         toast.success(`Activité ajoutée — ${payload.code_activite}`)
       }
 
-      // Mettre à jour les participants
+      // Mettre à jour les participants (ancienne table ejp_activite_membres)
       await supabase.from('ejp_activite_membres').delete().eq('activite_id', activiteId)
       if (form.membres_ids.length > 0) {
         await supabase.from('ejp_activite_membres').insert(
@@ -833,9 +1270,22 @@ function ActivitesEJPTab() {
                     <td className="px-4 py-2 text-slate-500">{calcDuree(a.heure_debut, a.heure_fin)}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => openView(a)} className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-purple-600" title="Voir"><Eye size={14} /></button>
-                        <button onClick={() => openEdit(a)} className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-blue-600" title="Modifier"><Edit size={14} /></button>
-                        <button onClick={() => setConfirmDelete(a)} className="p-1.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500" title="Supprimer"><Trash2 size={14} /></button>
+                        <button onClick={() => openView(a)} className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-purple-600" title="Voir">
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          onClick={() => openParticipants(a)}
+                          className="p-1.5 rounded hover:bg-indigo-50 text-slate-400 hover:text-indigo-600"
+                          title="Gérer les participants"
+                        >
+                          <UserPlus size={14} />
+                        </button>
+                        <button onClick={() => openEdit(a)} className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-blue-600" title="Modifier">
+                          <Edit size={14} />
+                        </button>
+                        <button onClick={() => setConfirmDelete(a)} className="p-1.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500" title="Supprimer">
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -919,19 +1369,45 @@ function ActivitesEJPTab() {
                   {viewItem.sainte_cene && <span className="badge bg-purple-100 text-purple-700">Sainte-Cène</span>}
                 </div>
               )}
-              {/* Membres participants */}
+
+              {/* Participants section */}
               {viewParticipants.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Membres participants ({viewParticipants.length})</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {viewParticipants.map((p: any) => (
-                      <span key={p.id} className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
-                        {p.ejp_membres?.prenom} {p.ejp_membres?.nom}
-                      </span>
-                    ))}
-                  </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Participants ({viewParticipants.length})
+                  </p>
+                  {/* Membres EJP */}
+                  {viewParticipants.filter(p => p.est_membre).length > 0 && (
+                    <div>
+                      <p className="text-xs text-purple-400 font-medium mb-1.5">Membres EJP</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {viewParticipants.filter(p => p.est_membre).map((p: any) => (
+                          <span key={p.id} className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                            <UserCheck size={11} />
+                            {p.prenom} {p.nom}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Externes */}
+                  {viewParticipants.filter(p => !p.est_membre).length > 0 && (
+                    <div>
+                      <p className="text-xs text-slate-400 font-medium mb-1.5">Participants externes</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {viewParticipants.filter(p => !p.est_membre).map((p: any) => (
+                          <span key={p.id} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium" title={[p.sexe, p.age ? `${p.age} ans` : null, p.telephone].filter(Boolean).join(' · ')}>
+                            <UserPlus size={11} />
+                            {p.prenom} {p.nom}
+                            {p.sexe && <span className="text-slate-400">· {p.sexe === 'Homme' ? 'H' : 'F'}</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+
               {viewItem.notes && (
                 <div className="bg-gray-50 rounded-xl px-3 py-2.5">
                   <p className="text-xs text-gray-400 font-medium">Notes</p>
@@ -1055,6 +1531,17 @@ function ActivitesEJPTab() {
           </button>
         </div>
       </Modal>
+
+      {/* Modal Participants */}
+      {participantsActivite && (
+        <ParticipantsModal
+          open={participantsModal}
+          onClose={() => { setParticipantsModal(false); setParticipantsActivite(null) }}
+          activite={participantsActivite}
+          membresList={membresList}
+          onSaved={fetchAll}
+        />
+      )}
 
       {/* Confirm suppression */}
       <ConfirmDialog
