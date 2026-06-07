@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Plus, Eye, Edit2, Trash2, BookOpen, Users,
-  GraduationCap, Lock, List, Download, Save, Loader, Unlock, CalendarDays
+  GraduationCap, Lock, List, Download, Save, Loader, Unlock, CalendarDays, Layers
 } from 'lucide-react'
 import SeancesModal from '../components/SeancesModal'
 import { exportExcel } from '../lib/export'
@@ -18,13 +18,29 @@ import { logEvent } from '../lib/journal'
 
 const PAGE_SIZE = 25
 
-type Onglet = 'promotions' | 'types' | 'en_cours' | 'cloturees'
+type Onglet = 'promotions' | 'types' | 'en_cours' | 'cloturees' | 'formation_pluri'
 
 const ONGLETS: { id: Onglet; label: string; icon: React.ReactNode }[] = [
-  { id: 'promotions',  label: 'Promotions',               icon: <List size={15} /> },
-  { id: 'types',       label: 'Types de classes',          icon: <BookOpen size={15} /> },
-  { id: 'en_cours',    label: 'Classes en cours',          icon: <GraduationCap size={15} /> },
-  { id: 'cloturees',   label: 'Classes clôturées',         icon: <Lock size={15} /> },
+  { id: 'promotions',      label: 'Promotions',           icon: <List size={15} /> },
+  { id: 'types',           label: 'Types de classes',      icon: <BookOpen size={15} /> },
+  { id: 'en_cours',        label: 'Classes en cours',      icon: <GraduationCap size={15} /> },
+  { id: 'cloturees',       label: 'Classes clôturées',     icon: <Lock size={15} /> },
+  { id: 'formation_pluri', label: 'Formation Pluri',       icon: <Layers size={15} /> },
+]
+
+// ─── Colonnes export Formation Pluri ─────────────────────────────────────────
+const COLS_EXPORT_FP = [
+  { header: 'N°', key: 'numero', width: 14 },
+  { header: 'Type formation', key: 'formation_type', width: 22 },
+  { header: 'Date', key: 'date_seance', width: 14 },
+  { header: 'Orateur', key: 'orateur', width: 22 },
+  { header: 'Traducteur', key: 'traducteur', width: 20 },
+  { header: 'Thématique', key: 'thematique', width: 28 },
+  { header: 'Hommes', key: 'nb_homme', width: 10 },
+  { header: 'Femmes', key: 'nb_femme', width: 10 },
+  { header: 'Apprenants', key: 'nb_apprenant', width: 12 },
+  { header: 'Proch. séance', key: 'date_prochaine_seance', width: 16 },
+  { header: 'Observations', key: 'obs', width: 30 },
 ]
 
 // ─── Génération code classe : {code_pcnc_slug}-{slug_promo}-{annee} ─────────
@@ -99,6 +115,136 @@ export default function FormationsPage() {
       .order('code')
     setTypesPcnc(data || [])
   }
+
+  // ─── Formation Pluri state ───────────────────────────────────────────────
+  const [seancesPluri, setSeancesPluri]       = useState<any[]>([])
+  const [loadingPluri, setLoadingPluri]       = useState(false)
+  const [typesFormPluri, setTypesFormPluri]   = useState<string[]>([])
+  const [modalPluri, setModalPluri]           = useState(false)
+  const [editPluri, setEditPluri]             = useState<any | null>(null)
+  const [viewPluriItem, setViewPluriItem]     = useState<any | null>(null)
+  const [viewPluriModal, setViewPluriModal]   = useState(false)
+  const [desactPluriDlg, setDesactPluriDlg]   = useState<any | null>(null)
+  const [pagePluri, setPagePluri]             = useState(1)
+  const [savingPluri, setSavingPluri]         = useState(false)
+
+  const emptyFP = {
+    formation_type: '', date_seance: '', orateur: '', traducteur: '',
+    thematique: '', nb_homme: 0, nb_femme: 0, date_prochaine_seance: '', obs: ''
+  }
+  const [formPluri, setFormPluri] = useState({ ...emptyFP })
+
+  // Auto-calcul nb_apprenant = nb_homme + nb_femme
+  const nbApprenantPluri = (Number(formPluri.nb_homme) || 0) + (Number(formPluri.nb_femme) || 0)
+
+  // Fetch données Pluri
+  const fetchSeancesPluri = async () => {
+    setLoadingPluri(true)
+    const { data } = await supabase
+      .from('seances_formation_pluri')
+      .select('*').eq('actif', true)
+      .order('date_seance', { ascending: false })
+    setSeancesPluri(data || [])
+    setLoadingPluri(false)
+  }
+
+  const fetchTypesFormPluri = async () => {
+    const { data } = await supabase
+      .from('listes_parametrables')
+      .select('valeur')
+      .eq('categorie', 'type_formation_pluri')
+      .eq('actif', true)
+      .order('ordre')
+    setTypesFormPluri((data || []).map((d: any) => d.valeur))
+  }
+
+  // Numéro auto FP-AAAA-nnn
+  const genNumeroPLuri = (): string => {
+    const annee = new Date().getFullYear()
+    const prefix = `FP-${annee}-`
+    const existing = seancesPluri
+      .map(s => s.numero)
+      .filter((n: string) => n && n.startsWith(prefix))
+      .map((n: string) => parseInt(n.replace(prefix, ''), 10))
+      .filter((n: number) => !isNaN(n))
+    const max = existing.length > 0 ? Math.max(...existing) : 0
+    return `${prefix}${String(max + 1).padStart(3, '0')}`
+  }
+
+  const openAddPluri = () => {
+    setEditPluri(null)
+    setFormPluri({ ...emptyFP })
+    setModalPluri(true)
+  }
+
+  const openEditPluri = (s: any) => {
+    setEditPluri(s)
+    setFormPluri({
+      formation_type: s.formation_type || '',
+      date_seance: s.date_seance || '',
+      orateur: s.orateur || '',
+      traducteur: s.traducteur || '',
+      thematique: s.thematique || '',
+      nb_homme: s.nb_homme || 0,
+      nb_femme: s.nb_femme || 0,
+      date_prochaine_seance: s.date_prochaine_seance || '',
+      obs: s.obs || '',
+    })
+    setModalPluri(true)
+  }
+
+  const savePluri = async () => {
+    if (!formPluri.formation_type) { toast.error('Type de formation requis'); return }
+    if (!formPluri.date_seance) { toast.error('Date requise'); return }
+    setSavingPluri(true)
+    const apprenant = (Number(formPluri.nb_homme) || 0) + (Number(formPluri.nb_femme) || 0)
+    const payload: any = {
+      formation_type: formPluri.formation_type,
+      date_seance: formPluri.date_seance,
+      orateur: formPluri.orateur || null,
+      traducteur: formPluri.traducteur || null,
+      thematique: formPluri.thematique || null,
+      nb_homme: Number(formPluri.nb_homme) || 0,
+      nb_femme: Number(formPluri.nb_femme) || 0,
+      nb_apprenant: apprenant,
+      date_prochaine_seance: formPluri.date_prochaine_seance || null,
+      obs: formPluri.obs || null,
+    }
+    if (editPluri) {
+      const { error } = await supabase.from('seances_formation_pluri').update(payload).eq('id', editPluri.id)
+      if (error) { toast.error('Erreur : ' + error.message); setSavingPluri(false); return }
+      await logEvent('formations', 'modifier', editPluri.id, `Seance FP modifiee ${editPluri.numero}`)
+      toast.success('Seance mise a jour')
+    } else {
+      const numero = genNumeroPLuri()
+      const { data, error } = await supabase.from('seances_formation_pluri')
+        .insert({ ...payload, numero, actif: true }).select().single()
+      if (error) { toast.error('Erreur : ' + error.message); setSavingPluri(false); return }
+      await logEvent('formations', 'creer', data.id, `Seance FP creee ${numero}`)
+      toast.success('Seance enregistree (' + numero + ')')
+    }
+    setSavingPluri(false)
+    setModalPluri(false)
+    fetchSeancesPluri()
+  }
+
+  const desactiverPluri = async () => {
+    if (!desactPluriDlg) return
+    await supabase.from('seances_formation_pluri').update({ actif: false }).eq('id', desactPluriDlg.id)
+    toast.success('Seance desactivee')
+    setDesactPluriDlg(null)
+    fetchSeancesPluri()
+  }
+
+  // Charger les données pluri quand on arrive sur l'onglet
+  useEffect(() => {
+    if (onglet === 'formation_pluri') {
+      fetchSeancesPluri()
+      fetchTypesFormPluri()
+    }
+  }, [onglet])
+
+  const paginatedPluri = seancesPluri.slice((pagePluri - 1) * PAGE_SIZE, pagePluri * PAGE_SIZE)
 
   // Compteurs pour badges onglets
   const nbEnCours   = formations.filter(f => !f.cloture).length
@@ -181,6 +327,261 @@ export default function FormationsPage() {
           onRefresh={fetchFormations}
         />
       )}
+
+      {/* ===== FORMATION PLURI ===== */}
+      {onglet === 'formation_pluri' && (
+        <div className="space-y-4">
+          {/* Barre actions */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <p className="text-sm text-slate-500">{seancesPluri.length} seance{seancesPluri.length > 1 ? 's' : ''}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => exportExcel('Formation Pluri', COLS_EXPORT_FP, seancesPluri, 'FormationPluri')}
+                className="btn-secondary flex items-center gap-1 text-sm">
+                <Download size={14} /> Excel
+              </button>
+              {canCreate && (
+                <button onClick={openAddPluri} className="btn-primary flex items-center gap-2">
+                  <Plus size={16} /> Ajouter seance
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Tableau */}
+          {loadingPluri ? (
+            <div className="flex justify-center h-32 items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700" />
+            </div>
+          ) : seancesPluri.length === 0 ? (
+            <EmptyState icon={Layers} title="Aucune seance enregistree" description="Ajoutez la premiere seance de formation pluridisciplinaire." />
+          ) : (
+            <div className="card overflow-hidden p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      {['N°', 'Type', 'Date', 'Orateur', 'Thematique', 'H', 'F', 'Apprenants', 'Proch. seance', ''].map(h => (
+                        <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {paginatedPluri.map((s: any) => (
+                      <tr key={s.id} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 font-mono text-xs font-semibold text-blue-700 whitespace-nowrap">{s.numero}</td>
+                        <td className="px-3 py-2">
+                          <span className="badge bg-indigo-100 text-indigo-700 text-xs">{s.formation_type}</span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">{fmtDate(s.date_seance)}</td>
+                        <td className="px-3 py-2 text-slate-700 text-xs">{s.orateur || '—'}</td>
+                        <td className="px-3 py-2 text-slate-500 text-xs max-w-40 truncate" title={s.thematique || ''}>{s.thematique || '—'}</td>
+                        <td className="px-3 py-2 text-center font-semibold text-blue-600">{s.nb_homme ?? 0}</td>
+                        <td className="px-3 py-2 text-center font-semibold text-pink-600">{s.nb_femme ?? 0}</td>
+                        <td className="px-3 py-2 text-center font-semibold text-slate-800">{s.nb_apprenant ?? 0}</td>
+                        <td className="px-3 py-2 text-slate-500 text-xs whitespace-nowrap">{fmtDate(s.date_prochaine_seance)}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => { setViewPluriItem(s); setViewPluriModal(true) }}
+                              className="p-1.5 rounded hover:bg-blue-50 text-blue-500" title="Voir">
+                              <Eye size={13} />
+                            </button>
+                            {canEdit && (
+                              <button
+                                onClick={() => openEditPluri(s)}
+                                className="p-1.5 rounded hover:bg-amber-50 text-amber-500" title="Modifier">
+                                <Edit2 size={13} />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => setDesactPluriDlg(s)}
+                                className="p-1.5 rounded hover:bg-red-50 text-red-400" title="Desactiver">
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2 border-t">
+                <Pagination total={seancesPluri.length} page={pagePluri} pageSize={PAGE_SIZE} onPage={setPagePluri} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal Ajouter / Modifier Formation Pluri */}
+      <Modal
+        open={modalPluri}
+        onClose={() => setModalPluri(false)}
+        title={editPluri ? `Modifier — ${editPluri.numero}` : 'Nouvelle seance Formation Pluri'}
+        size="lg">
+        <div className="space-y-4">
+          {!editPluri && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 flex items-center gap-3">
+              <span className="text-xs text-blue-500 font-medium">N° attribue automatiquement :</span>
+              <span className="font-mono font-bold text-blue-700">{genNumeroPLuri()}</span>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="label">Type de formation <span className="text-red-500">*</span></label>
+              <select
+                className="input"
+                value={formPluri.formation_type}
+                onChange={e => setFormPluri(f => ({ ...f, formation_type: e.target.value }))}>
+                <option value="">-- Selectionner --</option>
+                {typesFormPluri.map((t: string) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Date <span className="text-red-500">*</span></label>
+              <input
+                type="date" className="input"
+                value={formPluri.date_seance}
+                onChange={e => setFormPluri(f => ({ ...f, date_seance: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Date prochaine seance</label>
+              <input
+                type="date" className="input"
+                value={formPluri.date_prochaine_seance}
+                onChange={e => setFormPluri(f => ({ ...f, date_prochaine_seance: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Orateur</label>
+              <input
+                className="input"
+                value={formPluri.orateur}
+                onChange={e => setFormPluri(f => ({ ...f, orateur: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Traducteur</label>
+              <input
+                className="input"
+                value={formPluri.traducteur}
+                onChange={e => setFormPluri(f => ({ ...f, traducteur: e.target.value }))} />
+            </div>
+            <div className="col-span-2">
+              <label className="label">Thematique</label>
+              <input
+                className="input"
+                value={formPluri.thematique}
+                onChange={e => setFormPluri(f => ({ ...f, thematique: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Hommes</label>
+              <input
+                type="number" min={0} className="input"
+                value={formPluri.nb_homme}
+                onChange={e => setFormPluri(f => ({ ...f, nb_homme: parseInt(e.target.value) || 0 }))} />
+            </div>
+            <div>
+              <label className="label">Femmes</label>
+              <input
+                type="number" min={0} className="input"
+                value={formPluri.nb_femme}
+                onChange={e => setFormPluri(f => ({ ...f, nb_femme: parseInt(e.target.value) || 0 }))} />
+            </div>
+            <div className="col-span-2">
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2 flex items-center justify-between">
+                <span className="text-xs text-indigo-500 font-medium uppercase tracking-wide">Total Apprenants (auto)</span>
+                <span className="text-2xl font-bold text-indigo-700">{nbApprenantPluri}</span>
+              </div>
+            </div>
+            <div className="col-span-2">
+              <label className="label">Observations</label>
+              <textarea
+                className="input resize-none min-h-16"
+                value={formPluri.obs}
+                onChange={e => setFormPluri(f => ({ ...f, obs: e.target.value }))} />
+            </div>
+          </div>
+          <p className="text-xs text-slate-400"><span className="text-red-500">*</span> Champ obligatoire</p>
+        </div>
+        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+          <button onClick={() => setModalPluri(false)} className="btn-secondary">Annuler</button>
+          <button onClick={savePluri} disabled={savingPluri} className="btn-primary">
+            {savingPluri && <Loader size={14} className="animate-spin" />} Enregistrer
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal Vue Formation Pluri */}
+      <Modal open={viewPluriModal} onClose={() => setViewPluriModal(false)} title="" size="md">
+        {viewPluriItem && (
+          <div className="-m-4 -mt-4">
+            <div className="bg-gradient-to-r from-indigo-500 to-blue-600 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <Layers size={24} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-indigo-200 text-xs font-mono">{viewPluriItem.numero}</p>
+                  <h2 className="text-lg font-bold text-white">{viewPluriItem.formation_type}</h2>
+                  <p className="text-indigo-100 text-sm">{fmtDate(viewPluriItem.date_seance)}</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { label: 'Orateur', value: viewPluriItem.orateur || '—', bg: 'bg-indigo-50', text: 'text-indigo-400' },
+                  { label: 'Traducteur', value: viewPluriItem.traducteur || '—', bg: 'bg-indigo-50', text: 'text-indigo-400' },
+                  { label: 'Prochaine seance', value: fmtDate(viewPluriItem.date_prochaine_seance), bg: 'bg-blue-50', text: 'text-blue-400' },
+                  { label: 'Thematique', value: viewPluriItem.thematique || '—', bg: 'bg-slate-50', text: 'text-slate-400' },
+                ] as { label: string; value: string; bg: string; text: string }[]).map(item => (
+                  <div key={item.label} className={`${item.bg} rounded-xl px-3 py-2.5`}>
+                    <p className={`text-xs ${item.text} font-medium`}>{item.label}</p>
+                    <p className="font-semibold text-slate-800 text-sm mt-0.5">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-2 bg-indigo-50 rounded-xl p-3 text-center">
+                <div>
+                  <p className="text-xl font-bold text-blue-600">{viewPluriItem.nb_homme ?? 0}</p>
+                  <p className="text-xs text-indigo-400">Hommes</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-pink-600">{viewPluriItem.nb_femme ?? 0}</p>
+                  <p className="text-xs text-indigo-400">Femmes</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-indigo-700">{viewPluriItem.nb_apprenant ?? 0}</p>
+                  <p className="text-xs text-indigo-400">Apprenants</p>
+                </div>
+              </div>
+              {viewPluriItem.obs && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium">Observations</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{viewPluriItem.obs}</p>
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setViewPluriModal(false)} className="btn-secondary">Fermer</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Confirm desactiver Formation Pluri */}
+      <ConfirmDialog
+        open={!!desactPluriDlg}
+        onClose={() => setDesactPluriDlg(null)}
+        onConfirm={desactiverPluri}
+        title="Desactiver cette seance ?"
+        message={`Desactiver la seance "${desactPluriDlg?.numero}" ?`}
+        confirmLabel="Desactiver"
+        danger
+      />
+
     </div>
   )
 }
@@ -1423,7 +1824,6 @@ function ClassesCloatureesTab({
           </div>
         )}
       </Modal>
-
       {/* Confirm ré-ouverture */}
       <ConfirmDialog
         open={!!reouvrirDialog}
