@@ -83,7 +83,8 @@ export default function PhoningPage() {
     `)
       .eq('actif', true)
       // Exclure les personnes déjà intégrées (star, référent, aide, département, libéré)
-      .not('statut', 'in', `(${STATUTS_EXCLUS_PHONING.map(s => `"${s}"`).join(',')})`)
+      // Syntaxe Supabase correcte : valeurs sans guillemets dans la liste
+      .not('statut', 'in', `(${STATUTS_EXCLUS_PHONING.join(',')})`)
       .order('created_at', { ascending: false })
 
     if (search) query = query.or(`nom.ilike.%${search}%,prenom.ilike.%${search}%`)
