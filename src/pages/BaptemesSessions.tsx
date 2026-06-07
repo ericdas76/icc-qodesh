@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit2, Loader, Download, Eye, Droplets, Users, Calendar, Hash, CheckCircle2 } from 'lucide-react'
+import { Plus, Edit2, Loader, Download, Eye, Droplets, Users, Calendar, Hash, CheckCircle2, ClipboardList, BookOpen } from 'lucide-react'
 import Modal from '../components/Modal'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -11,7 +11,7 @@ import { fr } from 'date-fns/locale'
 import { logEvent } from '../lib/journal'
 import { exportExcel } from '../lib/export'
 
-type Onglet = 'sessions' | 'inscrits'
+type Onglet = 'sessions' | 'inscrits' | 'support'
 
 // Officiants fréquents (complétés par saisie libre)
 const OFFICIANTS_SUGGERES = [
@@ -40,9 +40,312 @@ const COLS_EXPORT_INSCRITS = [
   { header: 'Officiant', key: 'officiant' },
 ]
 
+// ─── Données statiques Support ────────────────────────────────────────────────
+
+const CHECKLIST_AVANT = [
+  {
+    cat: 'Administratif',
+    items: [
+      'Confirmer la date et le lieu du bapteme avec le(s) pasteur(s)',
+      'Verifier la liste des candidats et leur dossier (cours, temoignage, accord pastoral)',
+      'Envoyer les convocations aux candidats (date, heure, tenue vestimentaire)',
+      'Informer les familles et proches des candidats',
+      'Preparer les certificats / attestations de bapteme',
+    ],
+  },
+  {
+    cat: 'Logistique — Lieu',
+    items: [
+      "Verifier l'accessibilite et la proprete du lieu de bapteme (piscine, riviere, bassin)",
+      "Controler la temperature de l'eau (si baptistere)",
+      'Prevoir des espaces de changement separes (hommes / femmes)',
+      'Installer les serviettes, draps et vetements de rechange',
+      'Prevoir des sous-vetements de couleur sombre pour les candidats',
+      "Verifier l'eclairage et la sonorisation du lieu",
+    ],
+  },
+  {
+    cat: 'Technique & Medias',
+    items: [
+      'Tester le microphone (HF etanche si en exterieur)',
+      'Verifier la camera / appareil photo — batterie chargee, carte memoire disponible',
+      'Prevoir un photographe/videaste attitree',
+      'Verifier la connexion pour un eventuel live (si applicable)',
+    ],
+  },
+  {
+    cat: 'Equipe & Service',
+    items: [
+      "Designer les accompagnateurs dans l'eau (1 homme + 1 femme minimum)",
+      "Briefer l'equipe d'accueil et de placement",
+      "Prevoir une equipe de priere pour accompagner les candidats",
+      'Assurer la presence du/des officiant(s)',
+    ],
+  },
+]
+
+const CHECKLIST_PENDANT = [
+  {
+    cat: 'Deroulement',
+    items: [
+      "Veiller a l'ordre de passage des candidats (liste validee)",
+      'Annoncer clairement le nom de chaque candidat avant l\'immersion',
+      'Assurer que l\'officiant prononce la formule trinitaire complete',
+      'Verifier que chaque candidat est entierement immerge',
+      "Accompagner chaque candidat a la sortie de l'eau avec dignite",
+    ],
+  },
+  {
+    cat: 'Securite',
+    items: [
+      "Surveiller les candidats qui ne savent pas nager (presence d'un nageur)",
+      'Avoir une trousse de premiers secours a portee',
+      "Maintenir l'ordre et la solennite du culte",
+      "Eviter les attroupements au bord de l'eau",
+    ],
+  },
+  {
+    cat: 'Captation',
+    items: [
+      'Enregistrer chaque bapteme (video + photos)',
+      "Verifier regulierement l'espace de stockage disponible",
+      'Capturer les moments de priere et de chant',
+    ],
+  },
+]
+
+const CHECKLIST_APRES = [
+  {
+    cat: 'Administratif & Suivi',
+    items: [
+      'Remettre les certificats de bapteme a chaque nouveau baptise',
+      'Mettre a jour le registre de bapteme (application + registre physique)',
+      "Enregistrer les inscrits dans l'application avec date et officiant",
+      "Transmettre la liste des baptises au secretariat de l'eglise",
+      'Planifier un entretien de suivi post-bapteme (integration, groupe de croissance)',
+    ],
+  },
+  {
+    cat: 'Logistique',
+    items: [
+      'Nettoyer et ranger le lieu du bapteme',
+      'Recuperer le materiel (serviettes, draps, equipements)',
+      'Vider et desinfecter le baptistere si applicable',
+      'Restituer le materiel audio/video',
+    ],
+  },
+  {
+    cat: 'Communication',
+    items: [
+      'Partager les photos/videos avec les baptises (avec leur accord)',
+      "Publier un resume sur les supports de communication de l'eglise",
+      'Rediger un compte-rendu de la seance pour les archives',
+      "Remercier l'equipe ayant participe a l'organisation",
+    ],
+  },
+]
+
+const TRAME_PHASES = [
+  {
+    phase: 'OUVERTURE',
+    colorBg: 'bg-purple-50',
+    colorBorder: 'border-purple-100',
+    dot: 'bg-purple-500',
+    textColor: 'text-purple-800',
+    dureeTotal: '15 min',
+    steps: [
+      {
+        num: '1',
+        titre: 'Accueil & Mot de bienvenue',
+        detail: "Le presentateur accueille l'assemblee et les invites. Annonce du caractere solennel de la ceremonie.",
+        duree: '3 min',
+      },
+      {
+        num: '2',
+        titre: 'Louange & Adoration',
+        detail: "Temps de chants collectifs pour preparer l'atmosphere spirituelle. 2 a 3 chants choisis en lien avec le theme du bapteme.",
+        duree: '10 min',
+      },
+      {
+        num: '3',
+        titre: "Priere d'ouverture",
+        detail: 'Priere menee par un ancien ou le pasteur. Invocation du Saint-Esprit et consecration du temps.',
+        duree: '2 min',
+      },
+    ],
+  },
+  {
+    phase: 'ENSEIGNEMENT',
+    colorBg: 'bg-indigo-50',
+    colorBorder: 'border-indigo-100',
+    dot: 'bg-indigo-500',
+    textColor: 'text-indigo-800',
+    dureeTotal: '20 min',
+    steps: [
+      {
+        num: '4',
+        titre: 'Lecture biblique',
+        detail: 'Textes de reference : Matthieu 28:19 — Romains 6:3-4 — Actes 2:38. Lecture par un membre designe.',
+        duree: '3 min',
+      },
+      {
+        num: '5',
+        titre: 'Message / Exhortation',
+        detail: "Courte predication sur la signification du bapteme : mort a l'ancien homme, nouvelle naissance, engagement public de foi.",
+        duree: '15 min',
+      },
+      {
+        num: '6',
+        titre: 'Temps de recueillement',
+        detail: 'Chant doux. Invitation a la priere personnelle pour les candidats et l\'assemblee.',
+        duree: '2 min',
+      },
+    ],
+  },
+  {
+    phase: 'TEMOIGNAGES',
+    colorBg: 'bg-green-50',
+    colorBorder: 'border-green-100',
+    dot: 'bg-green-500',
+    textColor: 'text-green-800',
+    dureeTotal: '15-20 min',
+    steps: [
+      {
+        num: '7',
+        titre: 'Presentation des candidats',
+        detail: "Le responsable liste les candidats. Chaque nom est annonce a l'assemblee. Confirmation de leur engagement.",
+        duree: '3 min',
+      },
+      {
+        num: '8',
+        titre: 'Temoignages',
+        detail: "Chaque candidat (ou certains designes) partage brievement son temoignage de conversion. L'animateur encadre le temps.",
+        duree: '10-15 min',
+      },
+    ],
+  },
+  {
+    phase: 'BAPTEME',
+    colorBg: 'bg-sky-50',
+    colorBorder: 'border-sky-100',
+    dot: 'bg-sky-500',
+    textColor: 'text-sky-800',
+    dureeTotal: '20-30 min',
+    steps: [
+      {
+        num: '9',
+        titre: 'Deplacement / Installation',
+        detail: "Accompagnement des candidats vers le lieu de bapteme. Positionnement de l'equipe, du photographe et de l'assemblee.",
+        duree: '3 min',
+      },
+      {
+        num: '10',
+        titre: "Priere de consecration de l'eau",
+        detail: "L'officiant prie sur l'eau. Declaration solennelle de l'acte qui va s'accomplir.",
+        duree: '2 min',
+      },
+      {
+        num: '11',
+        titre: 'Immersions',
+        detail: "Chaque candidat entre dans l'eau. L'officiant declare : \"Je te baptise au nom du Pere, du Fils et du Saint-Esprit.\" Immersion complete. Applaudissements de l'assemblee a chaque bapteme.",
+        duree: '15-25 min',
+      },
+      {
+        num: '12',
+        titre: 'Chant pendant les immersions',
+        detail: "L'equipe de louange maintient une atmosphere de culte tout au long des immersions.",
+        duree: 'Continu',
+      },
+    ],
+  },
+  {
+    phase: 'CLOTURE',
+    colorBg: 'bg-amber-50',
+    colorBorder: 'border-amber-100',
+    dot: 'bg-amber-500',
+    textColor: 'text-amber-800',
+    dureeTotal: '10 min',
+    steps: [
+      {
+        num: '13',
+        titre: 'Accueil des nouveaux baptises',
+        detail: "Retour des baptises devant l'assemblee. Applaudissements. Courte parole d'encouragement du pasteur.",
+        duree: '3 min',
+      },
+      {
+        num: '14',
+        titre: 'Remise des certificats',
+        detail: 'Remise nominative et solennelle du certificat de bapteme a chaque nouveau baptise.',
+        duree: '3 min',
+      },
+      {
+        num: '15',
+        titre: 'Priere de cloture & Benediction',
+        detail: "Priere pastorale de benediction sur les baptises et l'assemblee. Envoi en mission.",
+        duree: '2 min',
+      },
+      {
+        num: '16',
+        titre: 'Chant final & Cloture',
+        detail: 'Chant de celebration. Annonces eventuelles (reception, prochain rendez-vous). Cloture officielle.',
+        duree: '2 min',
+      },
+    ],
+  },
+]
+
+// ─── Composants Support ────────────────────────────────────────────────────────
+
+function CheckSection({
+  label,
+  colorBg,
+  colorBorder,
+  dotColor,
+  textColor,
+  lettre,
+  sections,
+}: {
+  label: string
+  colorBg: string
+  colorBorder: string
+  dotColor: string
+  textColor: string
+  lettre: string
+  sections: { cat: string; items: string[] }[]
+}) {
+  return (
+    <div className="card p-0 overflow-hidden">
+      <div className={`${colorBg} ${colorBorder} border-b px-5 py-3 flex items-center gap-2`}>
+        <span className={`w-6 h-6 rounded-full ${dotColor} text-white text-xs font-bold flex items-center justify-center`}>
+          {lettre}
+        </span>
+        <h3 className={`font-semibold ${textColor} text-sm`}>{label}</h3>
+      </div>
+      <div className="divide-y">
+        {sections.map((section) => (
+          <div key={section.cat} className="px-5 py-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{section.cat}</p>
+            <ul className="space-y-1.5">
+              {section.items.map((item, idx) => (
+                <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
+                  <span className="mt-0.5 w-4 h-4 rounded border-2 border-slate-300 flex-shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Page principale ───────────────────────────────────────────────────────────
+
 export default function BaptemesSessions() {
   const { user, hasPermission } = useAuth()
   const [onglet, setOnglet] = useState<Onglet>('sessions')
+  const [supportSection, setSupportSection] = useState<'checklist' | 'trame'>('checklist')
 
   // Sessions
   const [sessions, setSessions] = useState<any[]>([])
@@ -256,12 +559,20 @@ export default function BaptemesSessions() {
       {/* Onglets */}
       <div className="border-b border-slate-200">
         <nav className="flex gap-1">
-          {[{ id: 'sessions', label: '📋 Sessions', count: sessions.length }, { id: 'inscrits', label: '👤 Inscrits', count: inscrits.length }].map(t => (
-            <button key={t.id} onClick={() => setOnglet(t.id as Onglet)}
+          {([
+            { id: 'sessions', label: '📋 Sessions', count: sessions.length },
+            { id: 'inscrits', label: '👤 Inscrits', count: inscrits.length },
+          ] as { id: Onglet; label: string; count: number }[]).map(t => (
+            <button key={t.id} onClick={() => setOnglet(t.id)}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${onglet === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
               {t.label} <span className="ml-1 text-xs bg-slate-100 rounded-full px-1.5">{t.count}</span>
             </button>
           ))}
+          <button
+            onClick={() => setOnglet('support')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${onglet === 'support' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            📁 Support
+          </button>
         </nav>
       </div>
 
@@ -384,6 +695,129 @@ export default function BaptemesSessions() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== SUPPORT ===== */}
+      {onglet === 'support' && (
+        <div className="space-y-4">
+          {/* Sous-navigation */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSupportSection('checklist')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                supportSection === 'checklist'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}>
+              <ClipboardList size={15} /> Check-list
+            </button>
+            <button
+              onClick={() => setSupportSection('trame')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                supportSection === 'trame'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}>
+              <BookOpen size={15} /> Trame de deroulement
+            </button>
+          </div>
+
+          {/* ── CHECK-LIST ── */}
+          {supportSection === 'checklist' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+                  <ClipboardList size={18} className="text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-900">Check-list — Bapteme</h2>
+                  <p className="text-xs text-slate-400">Points de verification avant, pendant et apres chaque seance</p>
+                </div>
+              </div>
+
+              <CheckSection
+                label="AVANT la seance"
+                colorBg="bg-amber-50"
+                colorBorder="border-amber-100"
+                dotColor="bg-amber-400"
+                textColor="text-amber-800"
+                lettre="A"
+                sections={CHECKLIST_AVANT}
+              />
+              <CheckSection
+                label="PENDANT la seance"
+                colorBg="bg-blue-50"
+                colorBorder="border-blue-100"
+                dotColor="bg-blue-500"
+                textColor="text-blue-800"
+                lettre="P"
+                sections={CHECKLIST_PENDANT}
+              />
+              <CheckSection
+                label="APRES la seance"
+                colorBg="bg-green-50"
+                colorBorder="border-green-100"
+                dotColor="bg-green-500"
+                textColor="text-green-800"
+                lettre="F"
+                sections={CHECKLIST_APRES}
+              />
+            </div>
+          )}
+
+          {/* ── TRAME ── */}
+          {supportSection === 'trame' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+                  <BookOpen size={18} className="text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-900">Trame de deroulement — Seance de Bapteme</h2>
+                  <p className="text-xs text-slate-400">Ordre type d'un culte de bapteme — a adapter selon le contexte</p>
+                </div>
+              </div>
+
+              <div className="card p-0 overflow-hidden">
+                {TRAME_PHASES.map((phase, pIdx) => (
+                  <div key={pIdx}>
+                    <div className={`${phase.colorBg} ${phase.colorBorder} border-b px-5 py-2.5 flex items-center justify-between`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full ${phase.dot}`} />
+                        <h3 className={`font-bold text-sm ${phase.textColor}`}>{phase.phase}</h3>
+                      </div>
+                      <span className="text-xs text-slate-400 font-medium">⏱ {phase.dureeTotal}</span>
+                    </div>
+                    <div className="divide-y">
+                      {phase.steps.map((step, sIdx) => (
+                        <div key={sIdx} className="px-5 py-3 flex gap-4">
+                          <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                            {step.num}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-semibold text-slate-800 text-sm">{step.titre}</p>
+                              <span className="text-xs text-slate-400 whitespace-nowrap bg-slate-50 px-2 py-0.5 rounded-full">{step.duree}</span>
+                            </div>
+                            <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">{step.detail}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex gap-3">
+                <span className="text-slate-400 text-lg leading-none">💡</span>
+                <p className="text-sm text-slate-500">
+                  Cette trame est indicative. Elle peut etre adaptee selon le nombre de candidats, le lieu, la duree souhaitee et les pratiques liturgiques de l'eglise. La duree totale estimee est de{' '}
+                  <strong className="text-slate-700">1h20 a 1h45</strong>.
+                </p>
               </div>
             </div>
           )}
