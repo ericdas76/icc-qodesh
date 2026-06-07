@@ -79,9 +79,21 @@ export default function ActivitesPriereStar() {
     setLoading(false)
   }
 
+  const genNumeroPS = (): string => {
+    const annee = new Date().getFullYear()
+    const prefix = `PS-${annee}-`
+    const existing = items
+      .map((s: any) => s.ordre)
+      .filter((n: string) => n && n.startsWith(prefix))
+      .map((n: string) => parseInt(n.replace(prefix, ''), 10))
+      .filter((n: number) => !isNaN(n))
+    const max = existing.length > 0 ? Math.max(...existing) : 0
+    return `${prefix}${String(max + 1).padStart(3, '0')}`
+  }
+
   const openAdd = () => {
     setEditItem(null)
-    setForm(emptyForm)
+    setForm({ ...emptyForm, ordre: genNumeroPS() })
     setModal(true)
   }
 
@@ -123,7 +135,7 @@ export default function ActivitesPriereStar() {
     if (!form.date_activite) return toast.error('Date requise')
     setSaving(true)
     const payload = {
-      ordre: form.ordre ? parseInt(form.ordre) : null,
+      ordre: form.ordre || null,
       date_activite: form.date_activite,
       conducteurs_priere: form.conducteurs_priere || null,
       heure_debut: form.heure_debut || null,
@@ -279,8 +291,14 @@ export default function ActivitesPriereStar() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">N° Ordre</label>
-            <input className="input" value={form.ordre}
-              onChange={e => setForm(p => ({ ...p, ordre: e.target.value }))} />
+            {!editItem ? (
+              <div className="input bg-slate-50 text-slate-600 font-mono font-semibold select-none">
+                {form.ordre}
+              </div>
+            ) : (
+              <input className="input" value={form.ordre}
+                onChange={e => setForm(p => ({ ...p, ordre: e.target.value }))} />
+            )}
           </div>
           <div>
             <label className="label">Date *</label>
