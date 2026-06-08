@@ -46,7 +46,19 @@ export default function ActivitesADG() {
     setLoading(false)
   }
 
-  const openCreate = () => { setEditItem(null); setForm(emptyForm); setModal(true) }
+  const genNumeroADG = (): string => {
+    const annee = new Date().getFullYear()
+    const prefix = `ADG-${annee}-`
+    const existing = activites
+      .map((a: ActiviteADG) => a.ordre?.toString())
+      .filter((n: string | undefined): n is string => !!n && n.startsWith(prefix))
+      .map((n: string) => parseInt(n.replace(prefix, ''), 10))
+      .filter((n: number) => !isNaN(n))
+    const max = existing.length > 0 ? Math.max(...existing) : 0
+    return `${prefix}${String(max + 1).padStart(3, '0')}`
+  }
+
+  const openCreate = () => { setEditItem(null); setForm({ ...emptyForm, ordre: genNumeroADG() }); setModal(true) }
   const openEdit = (a: ActiviteADG) => {
     setEditItem(a)
     setForm({
@@ -63,7 +75,7 @@ export default function ActivitesADG() {
     if (!form.date_activite) return toast.error('Date requise')
     setSaving(true)
     const payload = {
-      ordre: form.ordre ? parseInt(form.ordre) : null,
+      ordre: form.ordre || null,
       date_activite: form.date_activite, conducteurs: form.conducteurs || null,
       heure_debut: form.heure_debut || null, heure_fin: form.heure_fin || null,
       duree_minutes: form.duree_minutes ? parseInt(form.duree_minutes) : null,
@@ -95,6 +107,7 @@ export default function ActivitesADG() {
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(p => ({ ...p, [field]: field === 'hommes' || field === 'femmes' || field === 'enfants' ? parseInt(e.target.value) || 0 : e.target.value }))
 
+  const totalAdultes = (f: typeof form) => (f.hommes || 0) + (f.femmes || 0)
   const total = (f: typeof form) => (f.hommes || 0) + (f.femmes || 0) + (f.enfants || 0)
   const paginated = activites.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -165,7 +178,14 @@ export default function ActivitesADG() {
 
       <Modal open={modal} onClose={() => setModal(false)} title={editItem ? 'Modifier ADG' : 'Nouveau ADG'}>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className="label">N° Ordre</label><input className="input" value={form.ordre} onChange={set('ordre')} placeholder="1" /></div>
+          <div>
+            <label className="label">N° Ordre</label>
+            {!editItem ? (
+              <div className="input bg-slate-50 text-slate-600 font-mono font-semibold select-none">{form.ordre}</div>
+            ) : (
+              <input className="input" value={form.ordre} onChange={set('ordre')} />
+            )}
+          </div>
           <div><label className="label">Date *</label><input type="date" className="input" value={form.date_activite} onChange={set('date_activite')} /></div>
           <div className="col-span-2"><label className="label">Conducteurs</label><input className="input" value={form.conducteurs} onChange={set('conducteurs')} /></div>
           <div><label className="label">Heure début</label><input type="time" className="input" value={form.heure_debut} onChange={set('heure_debut')} /></div>
@@ -175,6 +195,7 @@ export default function ActivitesADG() {
           <div><label className="label">Hommes</label><input type="number" min={0} className="input" value={form.hommes} onChange={set('hommes')} /></div>
           <div><label className="label">Femmes</label><input type="number" min={0} className="input" value={form.femmes} onChange={set('femmes')} /></div>
           <div><label className="label">Enfants</label><input type="number" min={0} className="input" value={form.enfants} onChange={set('enfants')} /></div>
+          <div className="flex items-end pb-2"><span className="text-sm font-bold text-indigo-600">Total Adultes : {totalAdultes(form)}</span></div>
           <div className="flex items-end pb-2"><span className="text-sm font-bold text-blue-700">Total : {total(form)}</span></div>
           <div className="col-span-2"><label className="label">Notes</label><textarea className="input min-h-16 resize-none" value={form.notes} onChange={set('notes')} /></div>
         </div>
