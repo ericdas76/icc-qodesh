@@ -452,7 +452,7 @@ function PersonnesTab() {
 
   const fetchPersonnes = async () => {
     setLoading(true)
-    const { data } = await supabase.from('personnes').select('*').eq('actif', true).order('nom')
+    const { data } = await supabase.from('personnes').select('*').eq('actif', true).order('nom', { ascending: true }).order('prenom', { ascending: true })
     setPersonnes(data || [])
     setLoading(false)
   }
@@ -572,7 +572,7 @@ function PersonnesTab() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  {['Nom complet', 'Sexe', 'Téléphone', 'Email', 'Origine', '1er contact', 'Action'].map(h => (
+                  {['Nom', 'Prénom', 'Sexe', 'Téléphone', 'Email', 'Origine', '1er contact', 'Action'].map(h => (
                     <th key={h} className="text-left px-4 py-3 font-semibold text-gray-600">{h}</th>
                   ))}
                 </tr>
@@ -580,7 +580,8 @@ function PersonnesTab() {
               <tbody className="divide-y divide-gray-100">
                 {filtered.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-900">{p.prenom} {p.nom}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-900 uppercase">{p.nom}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{p.prenom}</td>
                     <td className="px-4 py-3 text-gray-600">{p.sexe === 'M' ? 'Homme' : p.sexe === 'F' ? 'Femme' : '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{p.telephone || '—'}</td>
                     <td className="px-4 py-3 text-gray-600 text-xs">{p.email || '—'}</td>
@@ -597,7 +598,7 @@ function PersonnesTab() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">Aucune personne trouvée</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">Aucune personne trouvée</td></tr>
                 )}
               </tbody>
             </table>
