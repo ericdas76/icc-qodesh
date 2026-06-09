@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { supabase, Profil, Role, ListeParametrable } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Plus, Edit, Trash2, Users, List, Shield, Loader, Save, Search, UserCog, Church } from 'lucide-react'
 import Modal from '../components/Modal'
+import Pagination from '../components/Pagination'
 import ConfirmDialog from '../components/ConfirmDialog'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -447,6 +448,8 @@ function PersonnesTab() {
   const [origineOptions, setOrigineOptions] = useState<string[]>([])
   const [langueOptions, setLangueOptions] = useState<string[]>([])
   const [form, setForm] = useState<any>({})
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 25
 
   useEffect(() => { fetchPersonnes(); fetchOptions() }, [])
 
@@ -545,11 +548,16 @@ function PersonnesTab() {
     fetchPersonnes()
   }
 
-  const filtered = personnes.filter(p => {
+  const filtered = useMemo(() => personnes.filter(p => {
     const s = search.toLowerCase()
     return !search || p.nom.toLowerCase().includes(s) || p.prenom.toLowerCase().includes(s)
       || (p.telephone || '').includes(s) || (p.email || '').toLowerCase().includes(s)
-  })
+  }), [personnes, search])
+
+  const paginated = useMemo(() =>
+    filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page, PAGE_SIZE]
+  )
 
   return (
     <div className="space-y-4">
@@ -557,7 +565,7 @@ function PersonnesTab() {
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input className="input pl-9" placeholder="Rechercher par nom, prénom, téléphone, email..."
-            value={search} onChange={e => setSearch(e.target.value)} />
+            value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
         </div>
         <p className="text-xs text-slate-400 mt-2">{filtered.length} personne{filtered.length > 1 ? 's' : ''} trouvée{filtered.length > 1 ? 's' : ''}</p>
       </div>
@@ -578,7 +586,7 @@ function PersonnesTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map(p => (
+                {paginated.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-semibold text-gray-900 uppercase">{p.nom}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{p.prenom}</td>
@@ -602,6 +610,7 @@ function PersonnesTab() {
                 )}
               </tbody>
             </table>
+          <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
           </div>
         )}
       </div>
