@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useAuth } from './contexts/AuthContext'
+import SplashScreen from './components/SplashScreen'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -38,6 +40,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { user, loading } = useAuth()
+  const [splashDone, setSplashDone] = useState(false)
+
+  if (!splashDone) return <SplashScreen onFinish={() => setSplashDone(true)} />
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
