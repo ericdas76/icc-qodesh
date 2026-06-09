@@ -113,7 +113,7 @@ function MembresEJPTab() {
       { data: lng },
       { data: src }
     ] = await Promise.all([
-      supabase.from('ejp_membres').select('*, ejp_departements(nom), ejp_formations_pcnc(code, libelle, nb_seance, nb_seance_obligatoire)').order('nom'),
+      supabase.from('ejp_membres').select('*, ejp_departements(nom), ejp_formations_pcnc(code, libelle, nb_seance, nb_seance_obligatoire)').order('nom', { ascending: true }).order('prenom', { ascending: true }),
       supabase.from('ejp_departements').select('*').eq('actif', true).order('nom'),
       supabase.from('ejp_formations_pcnc').select('*').eq('actif', true).order('code'),
       supabase.from('listes_parametrables').select('valeur').eq('categorie', 'langue').eq('actif', true).order('ordre'),
@@ -269,7 +269,7 @@ function MembresEJPTab() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-slate-50">
-                  {['Code', 'Nom & Prénom', 'Sexe', 'Âge', 'Téléphone', 'Département', 'Baptême', 'Formation PCNC', 'Statut', ''].map(h => (
+                  {['Code', 'Nom', 'Prénom', 'Sexe', 'Âge', 'Téléphone', 'Département', 'Baptême', 'Formation PCNC', 'Statut', ''].map(h => (
                     <th key={h} className="text-left px-4 py-2 text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -278,7 +278,8 @@ function MembresEJPTab() {
                 {paginated.map(m => (
                   <tr key={m.id} className={`hover:bg-slate-50 ${!m.actif ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-2 font-mono text-xs text-purple-700">{m.code_membre_ejp}</td>
-                    <td className="px-4 py-2 font-medium">{m.prenom} {m.nom}</td>
+                    <td className="px-4 py-2 font-semibold text-gray-900 uppercase">{m.nom}</td>
+                    <td className="px-4 py-2 font-medium text-gray-900">{m.prenom}</td>
                     <td className="px-4 py-2 text-slate-500">{m.sexe || '—'}</td>
                     <td className="px-4 py-2 text-slate-500">{calcAge(m.date_naissance) ?? '—'}</td>
                     <td className="px-4 py-2 text-slate-500">{m.telephone1 || '—'}</td>
