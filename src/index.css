@@ -9,6 +9,23 @@
   * {
     @apply border-purple-100;
   }
+
+  /* ── Tableaux globaux ── */
+  thead th {
+    @apply bg-purple-700 text-white text-xs font-semibold uppercase tracking-wide px-4 py-3 whitespace-nowrap;
+  }
+  tbody tr {
+    @apply border-b border-purple-50 transition-colors;
+  }
+  tbody tr:nth-child(even) {
+    @apply bg-purple-50/30;
+  }
+  tbody tr:hover {
+    @apply bg-purple-50;
+  }
+  tbody td {
+    @apply px-4 py-2.5 text-sm text-slate-700;
+  }
 }
 
 @layer components {
