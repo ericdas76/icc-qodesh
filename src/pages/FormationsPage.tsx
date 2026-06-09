@@ -134,7 +134,7 @@ export default function FormationsPage() {
   const [participants, setParticipants]             = useState<any[]>([])
   const [loadingPart, setLoadingPart]               = useState(false)
   const [savingPart, setSavingPart]                 = useState(false)
-  const emptyPart = { nom: '', prenom: '', sexe: '', telephone: '' }
+  const emptyPart = { nom: '', prenom: '', sexe: '', telephone: '', quartier: '' }
   const [formPart, setFormPart]                     = useState(emptyPart)
 
   const fetchParticipants = async (seanceId: string) => {
@@ -169,6 +169,7 @@ export default function FormationsPage() {
         prenom: formPart.prenom.trim(),
         sexe: formPart.sexe || null,
         telephone: formPart.telephone.trim() || null,
+        quartier: formPart.quartier.trim() || null,
         actif: true,
       })
     if (error) { toast.error('Erreur : ' + error.message); setSavingPart(false); return }
@@ -691,6 +692,7 @@ export default function FormationsPage() {
                         <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500">Nom</th>
                         <th className="text-center px-3 py-2 text-xs font-semibold text-slate-500">Sexe</th>
                         <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500">Telephone</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500">Quartier</th>
                         <th className="px-3 py-2"></th>
                       </tr>
                     </thead>
@@ -709,6 +711,7 @@ export default function FormationsPage() {
                             )}
                           </td>
                           <td className="px-3 py-2 text-slate-500 text-xs">{p.telephone || '—'}</td>
+                          <td className="px-3 py-2 text-slate-500 text-xs">{p.quartier || '—'}</td>
                           <td className="px-3 py-2">
                             <button
                               onClick={() => removeParticipant(p.id)}
@@ -762,6 +765,14 @@ export default function FormationsPage() {
                       placeholder="034..."
                       value={formPart.telephone}
                       onChange={e => setFormPart(f => ({ ...f, telephone: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Quartier</label>
+                    <input
+                      className="input"
+                      placeholder="Quartier"
+                      value={formPart.quartier}
+                      onChange={e => setFormPart(f => ({ ...f, quartier: e.target.value }))} />
                   </div>
                 </div>
                 <div className="flex justify-between items-center mt-3">
