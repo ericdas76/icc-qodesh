@@ -128,6 +128,63 @@ export default function FormationsPage() {
   const [pagePluri, setPagePluri]             = useState(1)
   const [savingPluri, setSavingPluri]         = useState(false)
 
+  // ─── Participants Formation Pluri state ──────────────────────────────────
+  const [participantsModal, setParticipantsModal]   = useState(false)
+  const [participantsSeance, setParticipantsSeance] = useState<any | null>(null)
+  const [participants, setParticipants]             = useState<any[]>([])
+  const [loadingPart, setLoadingPart]               = useState(false)
+  const [savingPart, setSavingPart]                 = useState(false)
+  const emptyPart = { nom: '', prenom: '', sexe: '', telephone: '' }
+  const [formPart, setFormPart]                     = useState(emptyPart)
+
+  const fetchParticipants = async (seanceId: string) => {
+    setLoadingPart(true)
+    const { data } = await supabase
+      .from('seances_formation_pluri_participants')
+      .select('*')
+      .eq('seance_id', seanceId)
+      .eq('actif', true)
+      .order('created_at', { ascending: true })
+    setParticipants(data || [])
+    setLoadingPart(false)
+  }
+
+  const openParticipants = (s: any) => {
+    setParticipantsSeance(s)
+    setFormPart(emptyPart)
+    setParticipants([])
+    setParticipantsModal(true)
+    fetchParticipants(s.id)
+  }
+
+  const addParticipant = async () => {
+    if (!formPart.nom.trim()) { toast.error('Nom requis'); return }
+    if (!formPart.prenom.trim()) { toast.error('Prenom requis'); return }
+    setSavingPart(true)
+    const { error } = await supabase
+      .from('seances_formation_pluri_participants')
+      .insert({
+        seance_id: participantsSeance.id,
+        nom: formPart.nom.trim(),
+        prenom: formPart.prenom.trim(),
+        sexe: formPart.sexe || null,
+        telephone: formPart.telephone.trim() || null,
+        actif: true,
+      })
+    if (error) { toast.error('Erreur : ' + error.message); setSavingPart(false); return }
+    setFormPart(emptyPart)
+    await fetchParticipants(participantsSeance.id)
+    setSavingPart(false)
+  }
+
+  const removeParticipant = async (id: string) => {
+    await supabase
+      .from('seances_formation_pluri_participants')
+      .update({ actif: false })
+      .eq('id', id)
+    await fetchParticipants(participantsSeance.id)
+  }
+
   const emptyFP = {
     formation_type: '', date_seance: '', orateur: '', traducteur: '',
     thematique: '', nb_homme: 0, nb_femme: 0, date_prochaine_seance: '', obs: ''
@@ -387,6 +444,11 @@ export default function FormationsPage() {
                               className="p-1.5 rounded hover:bg-blue-50 text-blue-500" title="Voir">
                               <Eye size={13} />
                             </button>
+                            <button
+                              onClick={() => openParticipants(s)}
+                              className="p-1.5 rounded hover:bg-violet-50 text-violet-500" title="Participants">
+                              <Users size={13} />
+                            </button>
                             {canEdit && (
                               <button
                                 onClick={() => openEditPluri(s)}
@@ -566,6 +628,161 @@ export default function FormationsPage() {
               <div className="flex justify-end pt-1">
                 <button onClick={() => setViewPluriModal(false)} className="btn-secondary">Fermer</button>
               </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ===== MODAL PARTICIPANTS FORMATION PLURI ===== */}
+      <Modal
+        open={participantsModal}
+        onClose={() => setParticipantsModal(false)}
+        title=""
+        size="lg">
+        {participantsSeance && (
+          <div className="-m-4 -mt-4">
+            {/* En-tête violet */}
+            <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-6 pt-5 pb-6 rounded-t-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shrink-0">
+                  <Users size={22} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-violet-200 text-xs font-mono">{participantsSeance.numero}</p>
+                  <h2 className="text-lg font-bold text-white">{participantsSeance.formation_type}</h2>
+                  <p className="text-violet-100 text-sm">{fmtDate(participantsSeance.date_seance)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 space-y-4">
+
+              {/* Compteur */}
+              {!loadingPart && (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-3 py-1 rounded-full">
+                    {participants.length} participant{participants.length > 1 ? 's' : ''}
+                  </span>
+                  <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full">
+                    {participants.filter(p => p.sexe === 'M').length} homme{participants.filter(p => p.sexe === 'M').length > 1 ? 's' : ''}
+                  </span>
+                  <span className="bg-pink-100 text-pink-700 text-xs font-semibold px-3 py-1 rounded-full">
+                    {participants.filter(p => p.sexe === 'F').length} femme{participants.filter(p => p.sexe === 'F').length > 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+
+              {/* Liste participants */}
+              {loadingPart ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-violet-600" />
+                </div>
+              ) : participants.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-sm">
+                  <Users size={32} className="mx-auto mb-2 text-slate-300" />
+                  Aucun participant enregistre
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500">Prenom</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500">Nom</th>
+                        <th className="text-center px-3 py-2 text-xs font-semibold text-slate-500">Sexe</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-slate-500">Telephone</th>
+                        <th className="px-3 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {participants.map(p => (
+                        <tr key={p.id} className="hover:bg-slate-50">
+                          <td className="px-3 py-2 font-medium text-slate-800">{p.prenom}</td>
+                          <td className="px-3 py-2 text-slate-700">{p.nom}</td>
+                          <td className="px-3 py-2 text-center">
+                            {p.sexe === 'M' ? (
+                              <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">H</span>
+                            ) : p.sexe === 'F' ? (
+                              <span className="bg-pink-100 text-pink-700 text-xs font-bold px-2 py-0.5 rounded-full">F</span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-slate-500 text-xs">{p.telephone || '—'}</td>
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={() => removeParticipant(p.id)}
+                              className="p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-500"
+                              title="Retirer">
+                              <Trash2 size={13} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Formulaire ajout rapide */}
+              <div className="border-t pt-4">
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Ajouter un participant</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label">Prenom <span className="text-red-500">*</span></label>
+                    <input
+                      className="input"
+                      placeholder="Prenom"
+                      value={formPart.prenom}
+                      onChange={e => setFormPart(f => ({ ...f, prenom: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Nom <span className="text-red-500">*</span></label>
+                    <input
+                      className="input"
+                      placeholder="Nom"
+                      value={formPart.nom}
+                      onChange={e => setFormPart(f => ({ ...f, nom: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Sexe</label>
+                    <select
+                      className="input"
+                      value={formPart.sexe}
+                      onChange={e => setFormPart(f => ({ ...f, sexe: e.target.value }))}>
+                      <option value="">-- Sexe --</option>
+                      <option value="M">Homme</option>
+                      <option value="F">Femme</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Telephone</label>
+                    <input
+                      className="input"
+                      placeholder="034..."
+                      value={formPart.telephone}
+                      onChange={e => setFormPart(f => ({ ...f, telephone: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mt-3">
+                  <p className="text-xs text-slate-400"><span className="text-red-500">*</span> Champs obligatoires</p>
+                  <button
+                    onClick={addParticipant}
+                    disabled={savingPart}
+                    className="btn-primary flex items-center gap-2">
+                    {savingPart
+                      ? <Loader size={14} className="animate-spin" />
+                      : <Plus size={14} />}
+                    Ajouter
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end pt-2 border-t">
+                <button onClick={() => setParticipantsModal(false)} className="btn-secondary">Fermer</button>
+              </div>
+
             </div>
           </div>
         )}
