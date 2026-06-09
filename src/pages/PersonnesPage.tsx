@@ -219,7 +219,7 @@ export default function PersonnesPage() {
     // Exclure les personnes déjà membres actifs
     const { data: membresActifs } = await supabase.from('membres').select('personne_id').eq('actif', true)
     const membresIds = (membresActifs || []).map((m: any) => m.personne_id)
-    const { data } = await supabase.from('personnes').select('*').eq('actif', true).order('nom')
+    const { data } = await supabase.from('personnes').select('*').eq('actif', true).order('nom', { ascending: true }).order('prenom', { ascending: true })
     setPersonnes((data || []).filter((p: any) => !membresIds.includes(p.id)))
     setLoading(false)
   }
@@ -436,7 +436,8 @@ export default function PersonnesPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Nom complet</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Nom</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Prénom</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Sexe</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Téléphone</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Origine</th>
@@ -448,7 +449,8 @@ export default function PersonnesPage() {
               <tbody className="divide-y divide-gray-100">
                 {paginated.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-900">{p.prenom} {p.nom}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-900 uppercase">{p.nom}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{p.prenom}</td>
                     <td className="px-4 py-3 text-gray-600">{p.sexe === 'M' ? 'Homme' : p.sexe === 'F' ? 'Femme' : '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{p.telephone || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{p.origine || '—'}</td>
