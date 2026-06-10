@@ -10,22 +10,7 @@
     @apply border-purple-100;
   }
 
-  /* ── Tableaux globaux ── */
-  thead th {
-    @apply bg-purple-700 text-white text-xs font-bold uppercase tracking-widest px-4 py-3 whitespace-nowrap opacity-100;
-  }
-  tbody tr {
-    @apply border-b border-purple-50 transition-colors;
-  }
-  tbody tr:nth-child(even) {
-    @apply bg-purple-50/30;
-  }
-  tbody tr:hover {
-    @apply bg-purple-50;
-  }
-  tbody td {
-    @apply px-4 py-2.5 text-sm text-slate-700;
-  }
+
 }
 
 @layer components {
@@ -115,6 +100,32 @@
     content: '';
     @apply w-3 h-3 rounded-full bg-purple-500 inline-block;
   }
+}
+
+/* ── Tableaux globaux ── */
+thead th {
+  background-color: #7e22ce !important; /* purple-800 */
+  color: #ffffff !important;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.75rem 1rem;
+  white-space: nowrap;
+}
+tbody tr {
+  border-bottom: 1px solid #f3e8ff; /* purple-100 */
+  transition: background-color 0.15s;
+}
+tbody tr:nth-child(even) {
+  background-color: rgba(245, 243, 255, 0.4); /* purple-50/40 */
+}
+tbody tr:hover {
+  background-color: #f5f3ff !important; /* purple-50 */
+}
+tbody td {
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
 }
 
 /* ── Scrollbar violette ── */
