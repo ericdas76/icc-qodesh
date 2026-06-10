@@ -12,7 +12,7 @@
 
   /* ── Tableaux globaux ── */
   thead th {
-    @apply bg-purple-700 text-white text-xs font-semibold uppercase tracking-wide px-4 py-3 whitespace-nowrap;
+    @apply bg-purple-700 text-white text-xs font-bold uppercase tracking-widest px-4 py-3 whitespace-nowrap opacity-100;
   }
   tbody tr {
     @apply border-b border-purple-50 transition-colors;
